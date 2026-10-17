@@ -1,9 +1,13 @@
 // Picks up commands queued in Supabase (by the web app) and runs them.
 // Realtime delivers new commands instantly; a slow poll covers missed messages.
 
+import { AGENT_INTEGRATIONS } from './integrations/index.js';
+
 const POLL_MS = 15_000;
 // Don't replay old taps after the Pi was offline for a while.
 const MAX_AGE_MS = 2 * 60_000;
+
+const prefixOf = (cmd) => cmd.device_id.split(':')[0];
 
 export function startCommandLoop(supabase, integrations, log) {
   let draining = false;
@@ -31,7 +35,7 @@ export function startCommandLoop(supabase, integrations, log) {
       return;
     }
 
-    const integration = integrations.get(cmd.device_id.split(':')[0]);
+    const integration = integrations.get(prefixOf(cmd));
     if (!integration) {
       await finish(cmd.id, 'failed', 'That integration is not enabled on the agent');
       return;
@@ -66,7 +70,10 @@ export function startCommandLoop(supabase, integrations, log) {
           log.warn('fetching commands failed:', error.message);
           break;
         }
-        for (const cmd of data) await run(cmd);
+        // evohome commands are handled by the Supabase function, not the Pi.
+        for (const cmd of data) {
+          if (AGENT_INTEGRATIONS.includes(prefixOf(cmd))) await run(cmd);
+        }
       } while (again);
     } finally {
       draining = false;

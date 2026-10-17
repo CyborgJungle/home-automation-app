@@ -24,7 +24,7 @@ const hub = createHub(supabase, log.child('hub'), pkg.version);
 const integrations = createIntegrations(config, hub, log);
 
 if (!integrations.length) {
-  log.warn('No integrations configured. Add TRÅDFRI, evohome or Eufy settings to .env.');
+  log.warn('No integrations configured. Add TRÅDFRI or Eufy settings to .env.');
 }
 
 // Start each integration independently; one failing (wrong password,

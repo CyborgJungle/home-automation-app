@@ -4,27 +4,45 @@ A first version for testing the connections: can we reach the IKEA lights, the H
 
 ```
  Phone / laptop ──► Vercel (web/)  ◄──►  Supabase (database + realtime)
-                                               ▲
-                     Raspberry Pi (agent/) ────┘  connects out; no port forwarding
+                                          │      ▲
+              evohome function (every 5 min) ──► Honeywell evohome cloud
+                                                 │
+                     Raspberry Pi (agent/) ──────┘  connects out; no port forwarding
                        ├─► IKEA TRÅDFRI gateway   (your home network)
-                       ├─► Honeywell evohome      (Honeywell cloud)
                        └─► Eufy doorbell          (Eufy cloud + push)
 ```
 
-- `web/` is a Next.js app on Vercel. It has a login and one page listing every device, with one test button per device and a log showing whether each command worked.
-- `agent/` runs on the Raspberry Pi. It reports devices to Supabase and carries out the commands the web app queues.
+- `web/` is a Next.js app on Vercel. It has a login (Google, or email and password) and one page listing every device, with one test button per device and a log showing whether each command worked.
+- `supabase/functions/evohome/` talks to the Honeywell cloud. The database runs it every 5 minutes and right away when you press a heating button, so heating works even when the Pi is off.
+- `agent/` runs on the Raspberry Pi for the devices that need your home network or an always-on connection: the IKEA gateway and the Eufy doorbell.
 - `supabase/migrations/` holds the database schema (already applied to the `home-automation` Supabase project).
 
-## 1. Accounts (Supabase)
+## 1. Sign-in
 
-1. Supabase dashboard → **Authentication → Users → Add user → Create new user**. Enter an email and password and tick **Auto Confirm User**. Do this once for each person.
-2. Only emails in the `allowed_emails` table can see or control anything. Add each of you in the **SQL editor**:
-   ```sql
-   insert into allowed_emails (email) values ('someone@example.com');
-   ```
-3. **Authentication → Sign In / Providers**: turn off **Allow new users to sign up**.
+Only emails in the `allowed_emails` table can sign in or see anything. Add each of you in the Supabase **SQL editor**:
 
-## 2. Raspberry Pi
+```sql
+insert into allowed_emails (email) values ('someone@gmail.com');
+```
+
+**Google sign-in** (one-time setup):
+
+1. [Google Cloud Console](https://console.cloud.google.com/) → create a project → **APIs & Services → OAuth consent screen**. Choose *External*, give the app a name, and add both your Google addresses as **test users**.
+2. **Credentials → Create credentials → OAuth client ID → Web application**. Under *Authorized redirect URIs* add `https://YOUR-PROJECT-REF.supabase.co/auth/v1/callback`. Copy the client ID and secret.
+3. Supabase → **Authentication → Sign In / Providers → Google**: enable it and paste the client ID and secret. Leave **Allow new users to sign up** on; the hook below blocks anyone not on the list.
+4. Supabase → **Authentication → URL Configuration**: set *Site URL* to `https://<your-app>.vercel.app`, and add these redirect URLs:
+   `https://<your-app>.vercel.app/auth/callback`, `https://*-<your-team>.vercel.app/auth/callback`, `http://localhost:3000/auth/callback`
+5. Supabase → **Authentication → Hooks → Before User Created** → Postgres → `public.hook_allowlist_signup`. This rejects any new account whose email isn't on the list.
+
+Email and password still works as a fallback: **Authentication → Users → Add user** (tick *Auto Confirm User*).
+
+## 2. Honeywell evohome
+
+Supabase → **Edge Functions → Secrets**: add `EVOHOME_USERNAME` and `EVOHOME_PASSWORD` (your evohome app login). Within 5 minutes your zones appear on the website.
+
+If the login fails with a DNS or 404 error, also add `EVOHOME_HOST=https://tccna.honeywell.com`. After a wrong password the function waits 30 minutes before trying again, so Honeywell doesn't lock the account.
+
+## 3. Raspberry Pi (IKEA + Eufy)
 
 You need an Ethernet cable (the Pi 2 has no Wi-Fi) and Raspberry Pi OS Lite, flashed with Raspberry Pi Imager. In the Imager settings, set the user to `pi` and enable SSH.
 
@@ -47,7 +65,6 @@ nano .env
 Fill in `.env` one integration at a time and test with **`npm run discover`** after each one. It logs in, lists what it finds and exits, without touching Supabase.
 
 - **IKEA TRÅDFRI:** run `npm run pair-tradfri -- <security code>`. The code is on the label under the gateway. Paste the three lines it prints into `.env`.
-- **Honeywell evohome:** use the email and password you use in the evohome app.
 - **Eufy:** ideally a second Eufy account that the doorbell is shared with (Eufy app → device settings → share). That way the agent won't sign your phone out. On the first login Eufy may email a code or ask for a captcha. The agent log tells you which `.env` line to fill in, then run it again.
 
 When `discover` looks right, add the Supabase secret key to `.env` (Project Settings → API Keys → **secret**) and run the agent as a service:
@@ -58,22 +75,22 @@ sudo systemctl enable --now home-agent
 journalctl -u home-agent -f     # live log
 ```
 
-## 3. Test
+## 4. Test
 
 Open the Vercel URL and sign in.
-- The **Raspberry Pi agent** box should say *Online*, with a green dot per integration.
-- Press a light's button. The **Command log** shows `done` and how long it took, or `failed` with the reason.
+- Each section shows whether its connection works (● Connected) or what's wrong. The **Raspberry Pi agent** box should say *Online*.
+- Press a light's or heating zone's button. The **Command log** shows `done` and how long it took, or `failed` with the reason.
 - Ring the doorbell. A row should appear under **Events** within a few seconds.
 
 ## Known limits
 
 - The TRÅDFRI gateway doesn't pass on motion-sensor or remote-button presses. Those devices appear (with battery level) but can't trigger anything.
 - The Honeywell and Eufy APIs are unofficial (the same ones Home Assistant uses). Heating status refreshes every 5 minutes because Honeywell rate-limits the API.
-- Commands older than 2 minutes are dropped, so taps made while the Pi was offline don't all fire when it comes back.
+- Commands older than 2 minutes are dropped, so taps made while something was offline don't all fire when it comes back.
 
 ## Development
 
 ```sh
 cd web && cp .env.example .env.local && npm install && npm run dev
-cd agent && npm install && npm test
+node --experimental-strip-types --test supabase/functions/evohome/honeywell.test.ts
 ```

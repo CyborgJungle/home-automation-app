@@ -5,7 +5,7 @@
 export function createHub(supabase, log, version) {
   const lastWritten = new Map(); // device id -> JSON of last written row
   const devices = new Map(); // device id -> last row
-  const integrations = {};
+  const integrations = {}; // name -> last reported { ok, error }
   const startedAt = new Date().toISOString();
 
   async function upsertDevice(row) {
@@ -39,15 +39,18 @@ export function createHub(supabase, log, version) {
       version,
       started_at: startedAt,
       last_seen: new Date().toISOString(),
-      integrations,
     });
     if (error) log.error('heartbeat failed:', error.message);
   }
 
-  function status(name, ok, error = null) {
+  async function status(name, ok, error = null) {
     const prev = integrations[name];
+    if (prev?.ok === ok && prev?.error === error) return;
     integrations[name] = { ok, error };
-    if (prev?.ok !== ok || prev?.error !== error) heartbeat();
+    const { error: dbError } = await supabase
+      .from('integration_status')
+      .upsert({ name, ok, error, updated_at: new Date().toISOString() });
+    if (dbError) log.error(`saving ${name} status failed:`, dbError.message);
   }
 
   return { upsertDevice, patchState, event, status, heartbeat, devices };

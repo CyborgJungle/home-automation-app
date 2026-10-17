@@ -21,6 +21,9 @@ export async function proxy(request: NextRequest) {
     },
   );
 
+  // The OAuth callback creates the session itself.
+  if (request.nextUrl.pathname.startsWith("/auth/")) return response;
+
   const { data } = await supabase.auth.getClaims();
   const signedIn = Boolean(data?.claims);
   const onLogin = request.nextUrl.pathname === "/login";

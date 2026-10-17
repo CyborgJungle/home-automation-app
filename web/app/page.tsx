@@ -8,15 +8,17 @@ import {
   type Command,
   type Device,
   type HomeEvent,
+  type IntegrationStatus,
 } from "@/lib/supabase";
 
 // The agent writes a heartbeat every 30s.
 const AGENT_OFFLINE_AFTER_MS = 90_000;
 
-const SECTIONS: { integration: Device["integration"]; title: string }[] = [
-  { integration: "tradfri", title: "IKEA TRÅDFRI" },
-  { integration: "evohome", title: "Honeywell evohome" },
-  { integration: "eufy", title: "Eufy" },
+// evohome runs in Supabase; the rest needs the Pi on the home network.
+const SECTIONS: { integration: Device["integration"]; title: string; onPi: boolean }[] = [
+  { integration: "tradfri", title: "IKEA TRÅDFRI", onPi: true },
+  { integration: "evohome", title: "Honeywell evohome", onPi: false },
+  { integration: "eufy", title: "Eufy", onPi: true },
 ];
 
 function time(iso: string | null | undefined) {
@@ -77,6 +79,7 @@ export default function Dashboard() {
   const [commands, setCommands] = useState<Command[]>([]);
   const [events, setEvents] = useState<HomeEvent[]>([]);
   const [agent, setAgent] = useState<AgentStatus | null>(null);
+  const [statuses, setStatuses] = useState<IntegrationStatus[]>([]);
   const [now, setNow] = useState(() => Date.now());
   const [sendError, setSendError] = useState<string | null>(null);
 
@@ -89,17 +92,19 @@ export default function Dashboard() {
       setMember(Boolean(isMember));
       if (!isMember) return;
 
-      const [d, c, e, a] = await Promise.all([
+      const [d, c, e, a, s] = await Promise.all([
         supabase.from("devices").select("*").order("room").order("name"),
         supabase.from("commands").select("*").order("created_at", { ascending: false }).limit(15),
         supabase.from("events").select("*").order("created_at", { ascending: false }).limit(10),
         supabase.from("agent_status").select("*").maybeSingle(),
+        supabase.from("integration_status").select("*"),
       ]);
       if (cancelled) return;
       setDevices(d.data ?? []);
       setCommands(c.data ?? []);
       setEvents(e.data ?? []);
       setAgent(a.data);
+      setStatuses(s.data ?? []);
     }
 
     load();
@@ -121,6 +126,10 @@ export default function Dashboard() {
       })
       .on<AgentStatus>("postgres_changes", { event: "*", schema: "public", table: "agent_status" }, (p) => {
         if (p.eventType !== "DELETE") setAgent(p.new);
+      })
+      .on<IntegrationStatus>("postgres_changes", { event: "*", schema: "public", table: "integration_status" }, (p) => {
+        if (p.eventType === "DELETE") return;
+        setStatuses((list) => [...list.filter((x) => x.name !== p.new.name), p.new]);
       })
       .subscribe();
 
@@ -179,23 +188,25 @@ export default function Dashboard() {
             <span className="muted"> · last seen {time(agent?.last_seen)}{agent?.version ? ` · v${agent.version}` : ""}</span>
           </span>
         </li>
-        {Object.entries(agent?.integrations ?? {}).map(([name, s]) => (
-          <li key={name}>
-            <span className="grow">
-              <span className={s.ok ? "ok" : "bad"}>{s.ok ? "●" : "○"}</span> {name}
-              {s.error && <div className="muted bad">{s.error}</div>}
-            </span>
-          </li>
-        ))}
       </ul>
 
       {sendError && <p className="bad">Couldn&apos;t send: {sendError}</p>}
 
-      {SECTIONS.map(({ integration, title }) => {
+      {SECTIONS.map(({ integration, title, onPi }) => {
         const list = sorted.filter((d) => d.integration === integration);
+        const status = statuses.find((s) => s.name === integration);
+        const reachable = (onPi ? agentOnline : true) && status?.ok === true;
         return (
           <section key={integration}>
             <h2>{title}</h2>
+            <p className="muted">
+              {status ? (
+                <span className={status.ok ? "ok" : "bad"}>{status.ok ? "● Connected" : `○ ${status.error ?? "Not connected"}`}</span>
+              ) : (
+                "○ Not set up yet"
+              )}
+              {" · "}runs on {onPi ? "the Raspberry Pi" : "Supabase"}
+            </p>
             {list.length === 0 ? (
               <p className="muted">No devices reported yet.</p>
             ) : (
@@ -216,7 +227,7 @@ export default function Dashboard() {
                       </span>
                       <span className="actions">
                         {testActions(d).map((a) => (
-                          <button key={a.label} disabled={busy || !agentOnline} onClick={() => send(d, a.action, a.params)}>
+                          <button key={a.label} disabled={busy || !reachable} onClick={() => send(d, a.action, a.params)}>
                             {busy ? "…" : a.label}
                           </button>
                         ))}

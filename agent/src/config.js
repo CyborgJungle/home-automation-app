@@ -18,16 +18,6 @@ export const config = {
       }
     : null,
 
-  evohome: env.EVOHOME_USERNAME
-    ? {
-        username: env.EVOHOME_USERNAME,
-        password: env.EVOHOME_PASSWORD,
-        host: env.EVOHOME_HOST || 'https://tccna.resideo.com',
-        // Honeywell rate-limits this API; don't go much below 5 minutes.
-        pollSeconds: Number(env.EVOHOME_POLL_SECONDS || 300),
-      }
-    : null,
-
   eufy: env.EUFY_USERNAME
     ? {
         username: env.EUFY_USERNAME,

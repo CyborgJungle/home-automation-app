@@ -41,5 +41,11 @@ export type AgentStatus = {
   version: string | null;
   started_at: string | null;
   last_seen: string | null;
-  integrations: Record<string, { ok: boolean; error: string | null }>;
+};
+
+export type IntegrationStatus = {
+  name: Device["integration"];
+  ok: boolean;
+  error: string | null;
+  updated_at: string;
 };
