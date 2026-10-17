@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { INTEGRATION_NAMES } from "@/components/devices";
 import { Blob, Icon } from "@/components/icons";
 import { timeAgo } from "@/components/ui";
@@ -20,6 +21,7 @@ const WHERE: Record<Device["integration"], string> = {
 export default function ActivityPage() {
   const { agent, agentOnline, statuses, commands, events, devices, automations, scenes, userEmail, signOut } = useHome();
   const nameOf = (id: string | null) => devices.find((d) => d.id === id)?.name ?? id ?? "–";
+  const [showTimeline, setShowTimeline] = useState(false);
 
   type Item = { key: string; at: string; title: string; detail: string; tone: string; status?: string };
   const items: Item[] = [
@@ -100,12 +102,23 @@ export default function ActivityPage() {
         </div>
       </section>
 
-      <section className="section">
-        <h2 className="section-title">Timeline</h2>
-        {items.length === 0 ? (
-          <p className="muted">Nothing has happened yet.</p>
-        ) : (
-          <div className="timeline">
+      <section className={`group tone-sand timeline-group${showTimeline ? " open" : ""}`}>
+        <button className="group-head" aria-expanded={showTimeline} aria-controls="timeline" onClick={() => setShowTimeline((v) => !v)}>
+          <span className="group-icon">
+            <Icon name="clock" size={20} />
+          </span>
+          <span className="group-text">
+            <strong>
+              Timeline <span className="count">{items.length}</span>
+            </strong>
+            <span>{items.length ? `Latest: ${items[0].title} at ${clock(items[0].at)}` : "Nothing has happened yet"}</span>
+          </span>
+          <span className="group-chevron">
+            <Icon name="down" size={18} stroke={2.6} />
+          </span>
+        </button>
+        {showTimeline && items.length > 0 && (
+          <div className="timeline" id="timeline">
             {items.map((i) => (
               <div key={i.key} className="event">
                 <span className={`event-dot tone-${i.tone}`} />

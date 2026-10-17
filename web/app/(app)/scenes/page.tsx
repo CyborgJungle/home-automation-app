@@ -72,7 +72,7 @@ export default function ScenesPage() {
           return (
             <article
               key={s.id}
-              className={`scene-card tone-${s.tone}${on ? " on" : ""}${i % 2 ? " tilt-r" : " tilt-l"}`}
+              className={`scene-card tone-${s.tone}${on || playing ? ` on ${i % 2 ? "tilt-r" : "tilt-l"}` : ""}`}
               role="button"
               tabIndex={0}
               aria-label={`Play ${s.name}`}

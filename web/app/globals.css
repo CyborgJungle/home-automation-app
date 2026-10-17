@@ -596,6 +596,15 @@ button.chip.selected {
   color: var(--paper);
 }
 
+.timeline-group {
+  margin-top: 28px;
+}
+
+.timeline-group > .timeline {
+  margin: 0 12px;
+  animation: unfold 0.22s ease-out;
+}
+
 .group > .grid {
   padding: 0 12px;
   animation: unfold 0.22s ease-out;
@@ -1060,12 +1069,13 @@ button.chip.selected {
   transition: background 0.25s, transform 0.2s, box-shadow 0.25s;
 }
 
+/* Scenes sit straight; the one that's on tips playfully to one side. */
 .scene-card.tilt-l {
-  transform: rotate(-1.2deg);
+  transform: rotate(-2deg);
 }
 
 .scene-card.tilt-r {
-  transform: rotate(1.2deg);
+  transform: rotate(2deg);
 }
 
 .scene-card.on {
