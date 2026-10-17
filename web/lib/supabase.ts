@@ -51,12 +51,15 @@ export type IntegrationStatus = {
   updated_at: string;
 };
 
-export type AutomationTrigger =
+export type AutomationRule =
   | { type: "time"; at: string; days: number[] }
+  | { type: "time_range"; from: string; until: string; days: number[] }
   | ({ type: "weather" } & WeatherPredicate)
   | { type: "sun"; event: "sunrise" | "sunset"; offset_minutes: number; days: number[] }
   | { type: "device"; device_id: string; key: string; op: "eq" | "ne" | "lt" | "gt"; value: unknown; option?: string }
   | { type: "event"; event: string; device_id?: string };
+
+export type AutomationTrigger = AutomationRule | { type: "logic"; groups: AutomationRule[][] };
 
 export type AutomationAction = {
   device_id: string;

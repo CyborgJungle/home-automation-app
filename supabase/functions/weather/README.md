@@ -37,9 +37,18 @@ rain sensor. The automation editor provides the Open-Meteo attribution link.
 - Weather triggers fire on a transition into a matching condition, not on every
   poll while the condition remains true. The first reading, missing values, and
   recovery after stale data are not threshold crossings.
-- `conditions` are an AND list of weather predicates. They apply to time, device,
-  doorbell, weather, and sunrise/sunset automations. Missing readings or data older
-  than 45 minutes block weather-dependent actions.
+- The editor offers **Time**, **Device** (including doorbells), and **Weather**
+  (including sunrise/sunset). Optional **And / Or** blocks appear before **Then**.
+  And checks must match together; Or begins another group with the same actions.
+  Each group runs when it becomes true, without repeating on unchanged readings.
+  Device, weather, time, and doorbell checks can be combined in any group. A
+  doorbell ring and exact time/sun events match at the event; device/weather
+  checks and time ranges test their current state. Time ranges can cross midnight.
+- Missing readings or weather older than 45 minutes cannot satisfy a check.
+  Offline devices are unknown. Unknown inputs do not create a false-to-true
+  transition, and an unavailable Or group does not block an independent group.
+  The legacy `conditions` weather list remains supported and is converted to And
+  blocks when edited. Apply `20261017001400_automation_logic.sql` for these rules.
 - Sunrise/sunset rules support offsets from -180 to +180 minutes and selected
   weekdays. The existing minute-based cloud scheduler evaluates them.
 - Existing device actions, custom scenes, and the dynamic Everything off scene
