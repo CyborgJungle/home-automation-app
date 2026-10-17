@@ -9,7 +9,7 @@ export function createClient() {
 
 export type Device = {
   id: string;
-  integration: "tradfri" | "evohome" | "eufy" | "brel" | "bravia" | "sonos";
+  integration: "tradfri" | "evohome" | "eufy" | "brel" | "bravia" | "sonos" | "apple";
   kind: string;
   name: string;
   room: string | null;
@@ -65,6 +65,8 @@ export type AutomationAction = {
   // Which builder choice made this action, so it can be edited again.
   option?: string;
   value?: number | null;
+  // For options picked from a list, like an app or a Sonos favourite.
+  choice?: string | null;
 };
 
 export type Automation = {
@@ -82,7 +84,7 @@ export type Automation = {
 export const SCENE_SHAPES = ["house", "flower", "circle", "star", "squircle", "cloud"] as const;
 export type SceneShape = (typeof SCENE_SHAPES)[number];
 
-export type SceneAction = Pick<AutomationAction, "device_id" | "action" | "params" | "option" | "value">;
+export type SceneAction = Pick<AutomationAction, "device_id" | "action" | "params" | "option" | "value" | "choice">;
 
 export type Scene = {
   id: string;

@@ -8,9 +8,9 @@ import { ChipChoice, deviceGroups, Picker, sceneItem, type PickerGroup } from "@
 import { actionOptions, canAct, type NumberInput } from "@/lib/devices";
 import type { AutomationAction, Device, Scene } from "@/lib/supabase";
 
-export type ActionRow = { device_id: string; option: string; value: number | null };
+export type ActionRow = { device_id: string; option: string; value: number | null; choice?: string | null };
 
-export const emptyRow = (): ActionRow => ({ device_id: "", option: "", value: null });
+export const emptyRow = (): ActionRow => ({ device_id: "", option: "", value: null, choice: null });
 
 const SCENE_PREFIX = "scene:";
 const sceneIdOf = (row: ActionRow) => (row.device_id.startsWith(SCENE_PREFIX) ? row.device_id.slice(SCENE_PREFIX.length) : null);
@@ -20,6 +20,7 @@ export const toRows = (actions: AutomationAction[]): ActionRow[] =>
     device_id: a.scene_id ? `${SCENE_PREFIX}${a.scene_id}` : a.device_id,
     option: a.option ?? "",
     value: a.value ?? null,
+    choice: a.choice ?? null,
   }));
 
 // Turns the rows into what Supabase runs, or explains what's missing.
@@ -36,7 +37,9 @@ export function buildActions(rows: ActionRow[], devices: Device[], scenes: Scene
     const option = device && actionOptions(device).find((o) => o.id === row.option);
     if (!device || !option) return "Every action needs a device and what to do.";
     const value = option.number ? row.value ?? option.number.default : null;
-    actions.push({ device_id: device.id, action: option.action, params: option.params(value), option: option.id, value });
+    const choice = option.choices ? row.choice ?? null : null;
+    if (option.choices && !choice) return `Pick which one for “${option.label}”.`;
+    actions.push({ device_id: device.id, action: option.action, params: option.params(value, choice), option: option.id, value, choice });
   }
   if (!actions.length) return "Add at least one action.";
   return actions;
@@ -80,7 +83,29 @@ export function ActionRows({
                   label="What to do"
                   value={row.option}
                   options={options.map((o) => ({ value: o.id, label: o.label }))}
-                  onChange={(v) => update({ option: v, value: null })}
+                  onChange={(v) => update({ option: v, value: null, choice: null })}
+                />
+              )}
+              {option?.choices && (
+                <Picker
+                  label={option.label}
+                  placeholder={`${option.label}…`}
+                  value={row.choice ?? ""}
+                  groups={[
+                    {
+                      title: option.label,
+                      items: option.choices.map((c) => ({
+                        value: c.value,
+                        label: c.label,
+                        art: (
+                          <span className="picker-icon tone-pink">
+                            <Icon name="play" size={15} />
+                          </span>
+                        ),
+                      })),
+                    },
+                  ]}
+                  onChange={(v) => update({ choice: v })}
                 />
               )}
               {option?.number && <NumberField input={option.number} value={row.value} onChange={(v) => update({ value: v })} />}

@@ -24,7 +24,7 @@ type State = Record<string, unknown>;
 export const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
 
 // Integrations that need the Raspberry Pi to be online.
-export const ON_PI: Device["integration"][] = ["tradfri", "eufy", "brel", "bravia", "sonos"];
+export const ON_PI: Device["integration"][] = ["tradfri", "eufy", "brel", "bravia", "sonos", "apple"];
 
 export const CATEGORIES: { id: string; title: string; kinds: string[]; tone: Tone }[] = [
   { id: "climate", title: "Climate", kinds: ["zone", "heating"], tone: "peach" },
@@ -168,8 +168,11 @@ export function describe(d: Device, s: State): string {
       if (p === null) return "Position unknown";
       return p === 0 ? "Open" : p === 100 ? "Closed" : `${100 - p}% open`;
     }
-    case "tv":
-      return s.on ? ["On", s.playing].filter(Boolean).join(" · ") : "Standby";
+    case "tv": {
+      // Sony reports its input in `playing`; Apple TV reports the app.
+      const what = s.app ?? (typeof s.playing === "string" ? s.playing : null);
+      return s.on ? ["On", what].filter(Boolean).join(" · ") : "Standby";
+    }
     case "speaker": {
       const what = s.title ? [s.title, s.artist].filter(Boolean).join(" — ") : s.source;
       return [s.playing ? "Playing" : "Paused", what].filter(Boolean).join(" · ");
@@ -246,9 +249,13 @@ export type ActionOption = {
   id: string;
   label: string; // "Turn on"
   action: string;
-  params: (n: number | null) => State;
+  params: (n: number | null, choice: string | null) => State;
   number?: NumberInput;
+  // Pick one from a (searchable) list, e.g. which app to open.
+  choices?: { value: string; label: string }[];
 };
+
+const listOf = (v: unknown) => (Array.isArray(v) ? (v as { id: string; name?: string; title?: string }[]) : []);
 
 export function actionOptions(d: Device): ActionOption[] {
   const fixed = (id: string, label: string, action: string, params: State = {}): ActionOption => ({
@@ -315,7 +322,7 @@ export function actionOptions(d: Device): ActionOption[] {
         fixed("off", "Mode: Off", "set_mode", { mode: "HeatingOff" }),
       ];
     case "speaker": {
-      const favorites = Array.isArray(d.state.favorites) ? (d.state.favorites as { id: string; title: string }[]) : [];
+      const favorites = listOf(d.state.favorites);
       return [
         fixed("play", "Play", "play"),
         fixed("pause", "Pause", "pause"),
@@ -329,16 +336,50 @@ export function actionOptions(d: Device): ActionOption[] {
         },
         fixed("mute", "Mute", "mute", { on: true }),
         fixed("unmute", "Unmute", "mute", { on: false }),
-        ...favorites.map((f) => fixed(`fav:${f.id}`, `Play “${f.title}”`, "favorite", { id: f.id, title: f.title })),
+        ...(favorites.length
+          ? [
+              {
+                id: "favorite",
+                label: "Play a favourite",
+                action: "favorite",
+                params: (_: number | null, choice: string | null) => ({
+                  id: choice,
+                  title: favorites.find((f) => f.id === choice)?.title,
+                }),
+                choices: favorites.map((f) => ({ value: f.id, label: f.title ?? f.id })),
+              },
+            ]
+          : []),
       ];
     }
-    case "tv":
+    case "tv": {
+      if (d.integration === "apple") {
+        const apps = listOf(d.state.apps);
+        return [
+          fixed("on", "Turn on", "power", { on: true }),
+          fixed("off", "Turn off", "power", { on: false }),
+          fixed("play", "Play", "play"),
+          fixed("pause", "Pause", "pause"),
+          ...(apps.length
+            ? [
+                {
+                  id: "app",
+                  label: "Open an app",
+                  action: "app",
+                  params: (_: number | null, choice: string | null) => ({ id: choice }),
+                  choices: apps.map((a) => ({ value: a.id, label: a.name ?? a.id })),
+                },
+              ]
+            : []),
+        ];
+      }
       return [
         fixed("on", "Turn on", "power", { on: true }),
         fixed("off", "Turn off", "power", { on: false }),
         fixed("mute", "Mute", "mute", { on: true }),
         fixed("unmute", "Unmute", "mute", { on: false }),
       ];
+    }
     default:
       return [];
   }

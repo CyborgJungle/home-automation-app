@@ -15,6 +15,7 @@ const WHERE: Record<Device["integration"], string> = {
   brel: "Pi",
   bravia: "Pi",
   sonos: "Pi",
+  apple: "Pi",
   eufy: "Pi",
   evohome: "Cloud",
 };

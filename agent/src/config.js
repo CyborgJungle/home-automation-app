@@ -1,3 +1,4 @@
+import os from 'node:os';
 import path from 'node:path';
 
 const env = process.env;
@@ -43,6 +44,15 @@ export const config = {
   sonos: env.SONOS === 'on' || env.SONOS_HOST
     ? {
         host: env.SONOS_HOST || undefined,
+      }
+    : null,
+
+  // Apple TV / HomePod via pyatv (installed in ~/.local/pyatv, see README).
+  // APPLE_DEVICES limits it to those names; APPLE=on takes every one found.
+  apple: env.APPLE === 'on' || env.APPLE_DEVICES
+    ? {
+        names: env.APPLE_DEVICES || '',
+        python: env.APPLE_PYTHON || path.join(os.homedir(), '.local/pyatv/bin/python'),
       }
     : null,
 

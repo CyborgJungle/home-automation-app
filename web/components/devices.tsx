@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Icon } from "@/components/icons";
+import { Picker } from "@/components/picker";
 import { Sheet, Slider, Switch, timeAgo } from "@/components/ui";
 import {
   describe,
@@ -26,6 +27,7 @@ export const INTEGRATION_NAMES: Record<Device["integration"], string> = {
   brel: "Brel Home",
   bravia: "Sony BRAVIA",
   sonos: "Sonos",
+  apple: "Apple",
 };
 
 function useDevice(d: Device) {
@@ -252,21 +254,22 @@ function DeviceControls({ device: d }: { device: Device }) {
               <button className="pill light" disabled={!reachable} onClick={() => go("volume", { delta: -2 })} aria-label="Volume down">
                 <Icon name="volDown" size={20} />
               </button>
-              <div className="tv-volume">{num(s.volume) ?? "–"}</div>
+              <div className="tv-volume">{num(s.volume) ?? (d.integration === "apple" ? "Vol" : "–")}</div>
               <button className="pill light" disabled={!reachable} onClick={() => go("volume", { delta: 2 })} aria-label="Volume up">
                 <Icon name="volUp" size={20} />
               </button>
             </div>
           )}
-          {Boolean(s.on) && (
+          {Boolean(s.on) && d.integration !== "apple" && (
             <button className="pill light wide" disabled={!reachable} onClick={() => go("mute", { on: !s.muted })}>
               <Icon name="mute" size={18} /> {s.muted ? "Unmute" : "Mute"}
             </button>
           )}
+          {Boolean(s.on) && d.integration === "apple" && <AppleTvControls state={s} reachable={reachable} go={go} />}
         </>
       )}
 
-      {d.kind === "speaker" && <SpeakerControls state={s} reachable={reachable} go={go} />}
+      {d.kind === "speaker" && <SpeakerControls state={s} reachable={reachable} go={go} sonos={d.integration === "sonos"} />}
 
       {(d.kind === "doorbell" || d.kind === "sensor" || d.kind === "remote") && (
         <div className="stat-row">
@@ -297,7 +300,9 @@ function SpeakerControls({
   state: s,
   reachable,
   go,
+  sonos,
 }: {
+  sonos: boolean;
   state: Record<string, unknown>;
   reachable: boolean;
   go: (action: string, params?: Record<string, unknown>) => void;
@@ -347,7 +352,63 @@ function SpeakerControls({
           </div>
         </>
       ) : (
-        <p className="muted small">Add favourites in the Sonos app (heart a station or playlist) to start them here, in scenes and in automations.</p>
+        sonos && <p className="muted small">Add favourites in the Sonos app (heart a station or playlist) to start them here, in scenes and in automations.</p>
+      )}
+    </>
+  );
+}
+
+function AppleTvControls({
+  state: s,
+  reachable,
+  go,
+}: {
+  state: Record<string, unknown>;
+  reachable: boolean;
+  go: (action: string, params?: Record<string, unknown>) => void;
+}) {
+  const apps = Array.isArray(s.apps) ? (s.apps as { id: string; name: string }[]) : [];
+  return (
+    <>
+      {Boolean(s.title) && (
+        <div className="now-playing">
+          <span className="muted small">{s.playing ? "Now playing" : "Paused"}{s.app ? ` · ${String(s.app)}` : ""}</span>
+          <strong>{String(s.title)}</strong>
+          {Boolean(s.artist) && <span className="muted">{String(s.artist)}</span>}
+        </div>
+      )}
+      <div className="transport">
+        <button className="round big-round" disabled={!reachable} aria-label="Previous" onClick={() => go("previous")}>
+          <Icon name="prev" size={22} />
+        </button>
+        <button className="round big-round dark" disabled={!reachable} aria-label={s.playing ? "Pause" : "Play"} onClick={() => go(s.playing ? "pause" : "play")}>
+          <Icon name={s.playing ? "pause" : "play"} size={26} />
+        </button>
+        <button className="round big-round" disabled={!reachable} aria-label="Next" onClick={() => go("next")}>
+          <Icon name="next" size={22} />
+        </button>
+      </div>
+      {apps.length > 0 && (
+        <Picker
+          label="Open an app"
+          placeholder="Open an app…"
+          value=""
+          groups={[
+            {
+              title: "Apps",
+              items: apps.map((a) => ({
+                value: a.id,
+                label: a.name,
+                art: (
+                  <span className="picker-icon tone-pink">
+                    <Icon name="tv" size={17} />
+                  </span>
+                ),
+              })),
+            },
+          ]}
+          onChange={(id) => go("app", { id })}
+        />
       )}
     </>
   );
