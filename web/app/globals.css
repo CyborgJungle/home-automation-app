@@ -605,6 +605,30 @@ button.chip.selected {
   animation: unfold 0.22s ease-out;
 }
 
+.group > .rooms {
+  display: grid;
+  gap: 16px;
+  padding: 0 12px;
+  animation: unfold 0.22s ease-out;
+}
+
+.room-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 4px 4px 8px;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.room-title span {
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--ink-2);
+}
+
 .group > .grid {
   padding: 0 12px;
   animation: unfold 0.22s ease-out;

@@ -89,6 +89,8 @@ export type SceneAction = Pick<AutomationAction, "device_id" | "action" | "param
 export type Scene = {
   id: string;
   name: string;
+  // "all_off" works out its actions when played (see migrations/…_all_off_scene.sql).
+  kind: "custom" | "all_off";
   tone: string;
   shape: SceneShape;
   actions: SceneAction[];

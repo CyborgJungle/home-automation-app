@@ -50,7 +50,21 @@ function satisfied(a: SceneAction, s: State): boolean | null {
   }
 }
 
+// "Everything off" is on when nothing it would switch off is still on.
+function everythingOff(devices: Device[], commands: Command[]) {
+  return devices
+    .filter((d) => d.online)
+    .every((d) => {
+      const s = displayState(d, commands);
+      if (["light", "group", "plug", "tv"].includes(d.kind)) return !s.on;
+      if (d.kind === "speaker") return !s.playing;
+      if (floorOf(s)) return !floorOf(s)!.enabled;
+      return true;
+    });
+}
+
 export function sceneIsOn(scene: Scene, devices: Device[], commands: Command[]) {
+  if (scene.kind === "all_off") return everythingOff(devices, commands);
   let checked = 0;
   for (const a of scene.actions) {
     const device = devices.find((d) => d.id === a.device_id);

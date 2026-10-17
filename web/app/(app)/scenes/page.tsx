@@ -10,16 +10,17 @@ import { SCENE_SHAPES, type Device, type Scene, type SceneShape } from "@/lib/su
 
 const TONES = ["yellow", "pink", "lavender", "sage", "peach", "mint", "sky"];
 
-type Draft = { id?: string; name: string; tone: string; shape: SceneShape; rows: ActionRow[] };
+type Draft = { id?: string; name: string; tone: string; shape: SceneShape; rows: ActionRow[]; kind: Scene["kind"] };
 
 const emptyDraft = (i = 0): Draft => ({
   name: "",
   tone: TONES[i % TONES.length],
   shape: SCENE_SHAPES[i % SCENE_SHAPES.length],
   rows: [emptyRow()],
+  kind: "custom",
 });
 
-const toDraft = (s: Scene): Draft => ({ id: s.id, name: s.name, tone: s.tone, shape: s.shape, rows: toRows(s.actions) });
+const toDraft = (s: Scene): Draft => ({ id: s.id, name: s.name, tone: s.tone, shape: s.shape, rows: toRows(s.actions), kind: s.kind });
 
 // Starting points, filled in with your own devices where possible.
 function ideas(devices: Device[]): Draft[] {
@@ -29,11 +30,13 @@ function ideas(devices: Device[]): Draft[] {
   const tv = find((d) => d.kind === "tv");
   const allGroups = devices.filter((d) => d.kind === "group").map((d) => d.id);
   const row = (device_id: string, option: string, value: number | null = null): ActionRow => ({ device_id, option: device_id ? option : "", value });
+  const custom = "custom" as const;
   return [
-    { name: "Movie night", tone: "pink", shape: "star", rows: [row(living, "brightness", 20), row(blind, "close"), ...(tv ? [row(tv, "on")] : [])] },
-    { name: "Good morning", tone: "yellow", shape: "flower", rows: [row(blind, "open"), row(living, "brightness", 80)] },
-    { name: "Good night", tone: "lavender", shape: "cloud", rows: allGroups.length ? allGroups.map((id) => row(id, "off")) : [row("", "")] },
-    { name: "Dinner", tone: "peach", shape: "circle", rows: [row(living, "brightness", 55)] },
+    { name: "Everything off", tone: "lavender", shape: "cloud", rows: [], kind: "all_off" },
+    { name: "Movie night", tone: "pink", shape: "star", rows: [row(living, "brightness", 20), row(blind, "close"), ...(tv ? [row(tv, "on")] : [])], kind: custom },
+    { name: "Good morning", tone: "yellow", shape: "flower", rows: [row(blind, "open"), row(living, "brightness", 80)], kind: custom },
+    { name: "Good night", tone: "lavender", shape: "cloud", rows: allGroups.length ? allGroups.map((id) => row(id, "off")) : [row("", "")], kind: custom },
+    { name: "Dinner", tone: "peach", shape: "circle", rows: [row(living, "brightness", 55)], kind: custom },
   ];
 }
 
@@ -41,7 +44,8 @@ export default function ScenesPage() {
   const { scenes, devices, commands, playScene } = useHome();
   const [draft, setDraft] = useState<Draft | null>(null);
   const existing = new Set(scenes.map((s) => s.name.toLowerCase()));
-  const suggestions = ideas(devices).filter((i) => !existing.has(i.name.toLowerCase()));
+  const hasAllOff = scenes.some((s) => s.kind === "all_off");
+  const suggestions = ideas(devices).filter((i) => !existing.has(i.name.toLowerCase()) && !(i.kind === "all_off" && hasAllOff));
 
   return (
     <main className="page">
@@ -104,7 +108,8 @@ export default function ScenesPage() {
                   </span>
                 ) : (
                   <span className="muted small">
-                    {count} {count === 1 ? "device" : "devices"} · {s.last_run_at ? timeAgo(s.last_run_at) : "never played"}
+                    {s.kind === "all_off" ? "Everything" : `${count} ${count === 1 ? "device" : "devices"}`} ·{" "}
+                    {s.last_run_at ? timeAgo(s.last_run_at) : "never played"}
                   </span>
                 )}
               </div>
@@ -132,7 +137,8 @@ export default function ScenesPage() {
 }
 
 function Editor({ initial, onClose }: { initial: Draft; onClose: () => void }) {
-  const { devices, saveScene, deleteScene, send } = useHome();
+  const { devices, scenes, saveScene, deleteScene, send, playScene } = useHome();
+  const allOff = initial.kind === "all_off";
   const [draft, setDraft] = useState(initial);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -140,10 +146,10 @@ function Editor({ initial, onClose }: { initial: Draft; onClose: () => void }) {
 
   async function save() {
     if (!draft.name.trim()) return setError("Give your scene a name.");
-    const actions = buildActions(draft.rows, devices);
+    const actions = allOff ? [] : buildActions(draft.rows, devices);
     if (typeof actions === "string") return setError(actions);
     setSaving(true);
-    const err = await saveScene({ id: draft.id, name: draft.name, tone: draft.tone, shape: draft.shape, actions });
+    const err = await saveScene({ id: draft.id, name: draft.name, tone: draft.tone, shape: draft.shape, actions, kind: draft.kind });
     setSaving(false);
     if (err) setError(err);
     else onClose();
@@ -151,6 +157,12 @@ function Editor({ initial, onClose }: { initial: Draft; onClose: () => void }) {
 
   // Try the devices out before saving.
   async function preview() {
+    if (allOff) {
+      const saved = scenes.find((s) => s.id === draft.id);
+      if (saved) await playScene(saved);
+      else setError("Create the scene first, then play it.");
+      return;
+    }
     const actions = buildActions(draft.rows, devices);
     if (typeof actions === "string") return setError(actions);
     setError(null);
@@ -207,10 +219,20 @@ function Editor({ initial, onClose }: { initial: Draft; onClose: () => void }) {
           <input value={draft.name} placeholder="e.g. Movie night" onChange={(e) => set({ name: e.target.value })} />
         </label>
 
-        <div className="block tone-sand">
-          <span className="badge">Set these</span>
-          <ActionRows rows={draft.rows} onChange={(rows) => set({ rows })} devices={devices} />
-        </div>
+        {allOff ? (
+          <div className="block tone-sand">
+            <span className="badge">Turns off</span>
+            <p>
+              Every light, plug and TV, music that&apos;s playing, and the floor heating. It looks at your devices when you
+              play it, so new ones are always included. Blinds and the rest of the heating are left alone.
+            </p>
+          </div>
+        ) : (
+          <div className="block tone-sand">
+            <span className="badge">Set these</span>
+            <ActionRows rows={draft.rows} onChange={(rows) => set({ rows })} devices={devices} />
+          </div>
+        )}
 
         {error && <p className="error">{error}</p>}
 

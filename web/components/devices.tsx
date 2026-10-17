@@ -39,7 +39,8 @@ function useDevice(d: Device) {
   return { state, busy, reachable, send };
 }
 
-export function DeviceTile({ device, onOpen }: { device: Device; onOpen: () => void }) {
+// `title` replaces the device name, e.g. "All lights" for a room's group under its room heading.
+export function DeviceTile({ device, onOpen, title }: { device: Device; onOpen: () => void; title?: string }) {
   const { state, busy, reachable, send } = useDevice(device);
   const tap = reachable ? tapAction(device, state) : null;
   const active = reachable && isActive(device, state);
@@ -81,7 +82,7 @@ export function DeviceTile({ device, onOpen }: { device: Device; onOpen: () => v
           <Icon name="chevron" size={16} stroke={2.6} />
         </button>
       </div>
-      <div className="tile-name">{device.name}</div>
+      <div className="tile-name">{title ?? device.name}</div>
       <div className={lowBattery(state) ? "tile-state warn" : "tile-state"}>
         {reachable ? describe(device, state) : offlineLabel(device)}
       </div>

@@ -356,7 +356,7 @@ export function HomeProvider({ children }: { children: React.ReactNode }) {
 
   const saveScene = useCallback<Home["saveScene"]>(
     async (s) => {
-      const row = { name: s.name.trim(), tone: s.tone, shape: s.shape, actions: s.actions };
+      const row = { name: s.name.trim(), tone: s.tone, shape: s.shape, actions: s.actions, kind: s.kind ?? "custom" };
       const { data, error } = s.id
         ? await supabase.from("scenes").update(row).eq("id", s.id).select().single()
         : await supabase.from("scenes").insert(row).select().single();
