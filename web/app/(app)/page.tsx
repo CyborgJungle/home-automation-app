@@ -172,11 +172,6 @@ export default function DevicesPage() {
             <Icon name="blind" size={16} /> {blindsOpen} open
           </span>
         )}
-        {piDevices && (
-          <span className={agentOnline ? "chip tone-sage" : "chip tone-red"}>
-            <span className="dot" /> Pi {agentOnline ? "online" : "offline"}
-          </span>
-        )}
       </div>
 
       {piDevices && !agentOnline && (
