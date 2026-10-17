@@ -193,6 +193,7 @@ function DeviceControls({ device: d }: { device: Device }) {
               Back to schedule{s.until ? ` (override until ${new Date(String(s.until)).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })})` : ""}
             </button>
           )}
+          <ZoneInfo state={s} />
           <p className="muted small">Honeywell updates every 5 minutes, so new temperatures can take a moment to show.</p>
         </>
       )}
@@ -411,5 +412,44 @@ function AppleTvControls({
         />
       )}
     </>
+  );
+}
+
+// How Honeywell has the zone set up, and any faults, in words.
+const ZONE_TYPES: Record<string, string> = {
+  RadiatorZone: "Radiator zone (radiator knobs)",
+  UnderfloorHeating: "Floor heating",
+  ZoneValves: "Zone valve (relay)",
+  ElectricHeating: "Electric heating",
+  MixingValve: "Mixing valve",
+};
+
+const FAULTS: Record<string, string> = {
+  TempZoneSensorLowBattery: "Sensor battery low",
+  TempZoneActuatorLowBattery: "Radiator knob battery low",
+  TempZoneSensorCommunicationLost: "Sensor out of contact",
+  TempZoneActuatorCommunicationLost: "Radiator knob out of contact",
+};
+
+function ZoneInfo({ state: s }: { state: Record<string, unknown> }) {
+  const faults = Array.isArray(s.fault_types) ? (s.fault_types as string[]) : [];
+  if (!s.zone_type && !faults.length) return null;
+  return (
+    <div className="list-card">
+      {Boolean(s.zone_type) && (
+        <div className="list-row">
+          <span className="grow">
+            <span className="muted small sub">Set up as</span>
+            <strong>{ZONE_TYPES[String(s.zone_type)] ?? String(s.zone_type)}</strong>
+          </span>
+        </div>
+      )}
+      {faults.map((f) => (
+        <div key={f} className="list-row">
+          <span className="dot bad" />
+          <span className="grow">{FAULTS[f] ?? f.replace(/([a-z])([A-Z])/g, "$1 $2")}</span>
+        </div>
+      ))}
+    </div>
   );
 }

@@ -9,7 +9,16 @@ const SCOPE = "EMEA-V1-Basic EMEA-V1-Anonymous EMEA-V1-Get-Current-User-Account"
 export const DEFAULT_HOST = "https://tccna.resideo.com";
 
 export type Token = { accessToken: string; refreshToken: string | null; expiresAt: number };
-export type Location = { id: string; name: string };
+// How a zone heats (from the installation setup), e.g. "RadiatorZone",
+// "UnderfloorHeating", "ZoneValves", "ElectricHeating", "MixingValve".
+export type ZoneConfig = { zoneType: string | null; modelType: string | null };
+export type Location = {
+  id: string;
+  name: string;
+  zones?: Record<string, ZoneConfig>;
+  systemType?: string | null;
+  hotWater?: boolean;
+};
 export type DeviceRow = {
   id: string;
   integration: "evohome";
@@ -30,8 +39,10 @@ export function formatUntil(date: Date) {
 // deno-lint-ignore no-explicit-any
 type Json = any;
 
+const faultTypes = (faults: Json) => (faults ?? []).map((f: Json) => f.faultType).filter(Boolean);
+
 // Turns one location's status response into device rows.
-export function statusToDevices(locationName: string, status: Json): DeviceRow[] {
+export function statusToDevices(locationName: string, status: Json, location?: Location): DeviceRow[] {
   const rows: DeviceRow[] = [];
   for (const gateway of status.gateways ?? []) {
     for (const tcs of gateway.temperatureControlSystems ?? []) {
@@ -45,6 +56,9 @@ export function statusToDevices(locationName: string, status: Json): DeviceRow[]
         state: {
           mode: tcs.systemModeStatus?.mode ?? null,
           faults: tcs.activeFaults?.length ?? 0,
+          fault_types: faultTypes(tcs.activeFaults),
+          system_type: location?.systemType ?? null,
+          hot_water: location?.hotWater ?? null,
         },
       });
 
@@ -63,6 +77,9 @@ export function statusToDevices(locationName: string, status: Json): DeviceRow[]
             mode: zone.setpointStatus?.setpointMode ?? null,
             until: zone.setpointStatus?.until ?? null,
             faults: zone.activeFaults?.length ?? 0,
+            fault_types: faultTypes(zone.activeFaults),
+            zone_type: location?.zones?.[zone.zoneId]?.zoneType ?? null,
+            model_type: location?.zones?.[zone.zoneId]?.modelType ?? null,
           },
         });
       }
@@ -179,14 +196,27 @@ export class Honeywell {
     const installations = await this.api(
       `location/installationInfo?userId=${user.userId}&includeTemperatureControlSystems=True`,
     );
-    return installations.map((i: Json) => ({ id: i.locationInfo.locationId, name: i.locationInfo.name }));
+    return installations.map((i: Json) => {
+      const systems = (i.gateways ?? []).flatMap((g: Json) => g.temperatureControlSystems ?? []);
+      const zones: Record<string, ZoneConfig> = {};
+      for (const z of systems.flatMap((s: Json) => s.zones ?? [])) {
+        zones[z.zoneId] = { zoneType: z.zoneType ?? null, modelType: z.modelType ?? null };
+      }
+      return {
+        id: i.locationInfo.locationId,
+        name: i.locationInfo.name,
+        zones,
+        systemType: systems[0]?.modelType ?? null,
+        hotWater: systems.some((s: Json) => Boolean(s.dhw)),
+      };
+    });
   }
 
   async devices(locations: Location[]): Promise<DeviceRow[]> {
     const rows: DeviceRow[] = [];
     for (const location of locations) {
       const status = await this.api(`location/${location.id}/status?includeTemperatureControlSystems=True`);
-      rows.push(...statusToDevices(location.name, status));
+      rows.push(...statusToDevices(location.name, status, location));
     }
     return rows;
   }

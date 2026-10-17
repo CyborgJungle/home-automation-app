@@ -42,7 +42,17 @@ test("statusToDevices maps the system and its zones", () => {
     ],
   };
 
-  const rows = statusToDevices("Home", status);
+  const location = {
+    id: "1",
+    name: "Home",
+    zones: {
+      "10": { zoneType: "UnderfloorHeating", modelType: "HeatingZone" },
+      "11": { zoneType: "RadiatorZone", modelType: "HeatingZone" },
+    },
+    systemType: "EvoTouch",
+    hotWater: false,
+  };
+  const rows = statusToDevices("Home", status, location);
 
   assert.deepEqual(
     rows.map((r) => [r.id, r.kind, r.name, r.online]),
@@ -52,9 +62,21 @@ test("statusToDevices maps the system and its zones", () => {
       ["evohome:zone:11", "zone", "Bedroom", false],
     ],
   );
-  assert.deepEqual(rows[1].state, { temperature: 20.5, setpoint: 21, mode: "FollowSchedule", until: null, faults: 0 });
+  assert.deepEqual(rows[1].state, {
+    temperature: 20.5,
+    setpoint: 21,
+    mode: "FollowSchedule",
+    until: null,
+    faults: 0,
+    fault_types: [],
+    zone_type: "UnderfloorHeating",
+    model_type: "HeatingZone",
+  });
+  assert.equal(rows[0].state.system_type, "EvoTouch");
   assert.equal(rows[2].state.temperature, null);
   assert.equal(rows[2].state.faults, 1);
+  assert.deepEqual(rows[2].state.fault_types, ["TempZoneActuatorLowBattery"]);
+  assert.equal(rows[2].state.zone_type, "RadiatorZone");
 });
 
 test("commandRequest builds a temporary override", () => {
