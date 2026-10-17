@@ -4,7 +4,8 @@
 // device (or, in automations, a scene) and what it should do.
 
 import { Icon } from "@/components/icons";
-import { actionOptions, canAct, pickerLabel, type NumberInput } from "@/lib/devices";
+import { ChipChoice, deviceGroups, Picker, sceneItem, type PickerGroup } from "@/components/picker";
+import { actionOptions, canAct, type NumberInput } from "@/lib/devices";
 import type { AutomationAction, Device, Scene } from "@/lib/supabase";
 
 export type ActionRow = { device_id: string; option: string; value: number | null };
@@ -52,7 +53,10 @@ export function ActionRows({
   devices: Device[];
   scenes?: Scene[];
 }) {
-  const actionDevices = devices.filter(canAct).sort((a, b) => pickerLabel(a).localeCompare(pickerLabel(b)));
+  const groups: PickerGroup[] = [
+    ...(scenes?.length ? [{ title: "Play a scene", items: scenes.map((sc) => sceneItem(sc, `${SCENE_PREFIX}${sc.id}`)) }] : []),
+    ...deviceGroups(devices.filter(canAct)),
+  ];
 
   return (
     <>
@@ -64,34 +68,20 @@ export function ActionRows({
         return (
           <div key={i} className="action-row">
             <div className="action-fields">
-              <select aria-label="Device" value={row.device_id} onChange={(e) => update({ device_id: e.target.value, option: "", value: null })}>
-                <option value="">Choose a device…</option>
-                {scenes && scenes.length > 0 && (
-                  <optgroup label="Play a scene">
-                    {scenes.map((s) => (
-                      <option key={s.id} value={`${SCENE_PREFIX}${s.id}`}>
-                        ✦ {s.name}
-                      </option>
-                    ))}
-                  </optgroup>
-                )}
-                <optgroup label="Devices">
-                  {actionDevices.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {pickerLabel(d)}
-                    </option>
-                  ))}
-                </optgroup>
-              </select>
+              <Picker
+                label={scenes ? "Device or scene" : "Device"}
+                placeholder={scenes ? "Choose a device or scene" : "Choose a device"}
+                value={row.device_id}
+                groups={groups}
+                onChange={(v) => update({ device_id: v, option: "", value: null })}
+              />
               {device && (
-                <select aria-label="Action" value={row.option} onChange={(e) => update({ option: e.target.value, value: null })}>
-                  <option value="">Do what?</option>
-                  {options.map((o) => (
-                    <option key={o.id} value={o.id}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
+                <ChipChoice
+                  label="What to do"
+                  value={row.option}
+                  options={options.map((o) => ({ value: o.id, label: o.label }))}
+                  onChange={(v) => update({ option: v, value: null })}
+                />
               )}
               {option?.number && <NumberField input={option.number} value={row.value} onChange={(v) => update({ value: v })} />}
             </div>

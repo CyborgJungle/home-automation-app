@@ -35,7 +35,7 @@ export const CATEGORIES: { id: string; title: string; kinds: string[]; tone: Ton
   { id: "sensors", title: "Sensors & remotes", kinds: ["sensor", "remote"], tone: "sky" },
 ];
 
-const KIND_LABELS: Record<string, string> = {
+export const KIND_LABELS: Record<string, string> = {
   light: "light",
   group: "room lights",
   plug: "plug",
@@ -45,12 +45,6 @@ const KIND_LABELS: Record<string, string> = {
   tv: "TV",
   doorbell: "doorbell",
 };
-
-// For pickers, where a room's lights and its heating zone share a name.
-export function pickerLabel(d: Device) {
-  const kind = KIND_LABELS[d.kind] ?? d.kind;
-  return d.name.toLowerCase() === kind.toLowerCase() ? d.name : `${d.name} · ${kind}`;
-}
 
 export const lowBattery = (s: State) => num(s.battery) !== null && num(s.battery)! <= 15;
 
@@ -210,6 +204,13 @@ export function triggerOptions(d: Device): TriggerOption[] {
       return [
         { id: "opened", label: "opens fully", key: "position", op: "eq", value: 0 },
         { id: "closed", label: "closes fully", key: "position", op: "eq", value: 100 },
+      ];
+    // The IKEA gateway doesn't pass on motion or button presses, only battery.
+    case "sensor":
+    case "remote":
+    case "doorbell":
+      return [
+        { id: "battery_low", label: "battery drops below", key: "battery", op: "lt", number: { min: 5, max: 50, step: 5, unit: "%", default: 15 } },
       ];
     default:
       return [];

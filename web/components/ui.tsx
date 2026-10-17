@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Icon, type IconKey } from "@/components/icons";
 import { useHome } from "@/lib/home";
 
@@ -35,12 +36,15 @@ export function Sheet({
   onClose,
   title,
   tone,
+  tall,
   children,
 }: {
   open: boolean;
   onClose: () => void;
   title: React.ReactNode;
   tone?: string;
+  // Fixed height, so the sheet doesn't jump while a search narrows its list.
+  tall?: boolean;
   children: React.ReactNode;
 }) {
   // Keep the page behind from scrolling while the sheet is up.
@@ -54,10 +58,12 @@ export function Sheet({
   }, [open]);
 
   if (!open) return null;
-  return (
+  // Rendered at the end of <body>, so a sheet opened from inside another
+  // sheet (like a picker in an editor) always sits on top of it.
+  return createPortal(
     <div className="sheet-backdrop" onClick={onClose}>
       <div
-        className="sheet"
+        className={tall ? "sheet tall" : "sheet"}
         role="dialog"
         aria-modal="true"
         style={tone ? ({ "--sheet-tone": `var(--${tone})` } as React.CSSProperties) : undefined}
@@ -72,7 +78,8 @@ export function Sheet({
         </header>
         <div className="sheet-body">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

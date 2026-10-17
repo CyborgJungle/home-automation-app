@@ -579,6 +579,10 @@ button.chip.selected {
   animation: rise 0.28s cubic-bezier(0.2, 0.9, 0.3, 1.1);
 }
 
+.sheet.tall {
+  height: calc(100dvh - var(--safe-top) - 48px);
+}
+
 .sheet-handle {
   width: 44px;
   height: 5px;
@@ -1081,9 +1085,7 @@ button.chip.selected {
   color: var(--ink-2);
 }
 
-.field input,
-.field select,
-.action-fields select {
+.field input {
   width: 100%;
   height: 52px;
   padding: 0 16px;
@@ -1096,19 +1098,183 @@ button.chip.selected {
   -webkit-appearance: none;
 }
 
-.field select,
-.action-fields select {
-  padding-right: 40px;
-  background: #fff
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23151515' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")
-    no-repeat right 16px center;
-}
-
-.field input:focus,
-.field select:focus,
-.action-fields select:focus {
+.field input:focus {
   outline: 3px solid var(--ink);
   outline-offset: 1px;
+}
+
+/* ---------------------------------------------------------------- picker */
+
+.picker {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 52px;
+  padding: 6px 14px 6px 6px;
+  border-radius: 16px;
+  background: #fff;
+  border: 1.5px solid var(--line);
+  text-align: left;
+}
+
+.picker.empty {
+  padding-left: 16px;
+}
+
+.picker.empty strong {
+  color: var(--ink-3);
+  font-weight: 650;
+}
+
+.picker > svg {
+  margin-left: auto;
+  flex: none;
+}
+
+.picker-art {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex: none;
+}
+
+.picker-icon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: var(--tone);
+}
+
+.picker-text {
+  display: grid;
+  min-width: 0;
+  line-height: 1.2;
+}
+
+.picker-text strong {
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.picker-text span {
+  font-size: 13px;
+  color: var(--ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.picker-search {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 50px;
+  padding: 0 6px 0 14px;
+  margin-bottom: 6px;
+  border-radius: 999px;
+  background: #fff;
+  border: 1.5px solid var(--line);
+  box-shadow: 0 8px 12px -8px rgba(21, 21, 21, 0.12);
+}
+
+.picker-search input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  outline: 0;
+  background: none;
+  font-size: 16px; /* keeps iOS from zooming in */
+  font-weight: 600;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.picker-search input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.picker-search:focus-within {
+  border-color: var(--ink);
+}
+
+.picker-group h3 {
+  margin: 16px 4px 8px;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.picker-list {
+  display: grid;
+  border-radius: var(--r-md);
+  background: #fff;
+  border: 1.5px solid var(--line);
+  overflow: hidden;
+}
+
+.picker-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 8px 14px 8px 8px;
+  text-align: left;
+}
+
+.picker-option + .picker-option {
+  border-top: 1.5px solid var(--line);
+}
+
+.picker-option:active {
+  background: var(--cream);
+}
+
+.picker-option.selected {
+  background: color-mix(in srgb, var(--yellow) 35%, #fff);
+}
+
+.picker-option > svg {
+  margin-left: auto;
+  flex: none;
+}
+
+.picker-none {
+  padding: 24px 4px;
+  text-align: center;
+}
+
+.chip-choice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip-choice button {
+  height: 38px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.75);
+  border: 1.5px solid var(--line);
+  font-weight: 650;
+  font-size: 15px;
+}
+
+.chip-choice button.selected {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
 }
 
 .block {

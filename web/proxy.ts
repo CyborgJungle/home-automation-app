@@ -38,5 +38,5 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   // The manifest, icons and version check must load without a session.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|icon|apple-icon|api/version).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|icon|apple-icon|api/version|api/keepalive).*)"],
 };

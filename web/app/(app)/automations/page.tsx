@@ -5,7 +5,8 @@ import { ActionRows, buildActions, emptyRow, NumberField, toRows, type ActionRow
 import { Blob, Icon, type IconKey } from "@/components/icons";
 import { Sheet, Switch, timeAgo } from "@/components/ui";
 import { DAYS, describeTrigger, summary, WEEK } from "@/lib/automations";
-import { canTrigger, pickerLabel, triggerOptions } from "@/lib/devices";
+import { ChipChoice, deviceGroups, Picker } from "@/components/picker";
+import { canTrigger, triggerOptions } from "@/lib/devices";
 import { useHome } from "@/lib/home";
 import type { Automation, AutomationAction, AutomationTrigger, Device, Scene } from "@/lib/supabase";
 
@@ -203,8 +204,7 @@ function Editor({ initial, onClose }: { initial: Draft; onClose: () => void }) {
   const [saving, setSaving] = useState(false);
   const set = (patch: Partial<Draft>) => setDraft((d) => ({ ...d, ...patch }));
 
-  const byLabel = (a: Device, b: Device) => pickerLabel(a).localeCompare(pickerLabel(b));
-  const triggerDevices = devices.filter(canTrigger).sort(byLabel);
+  const triggerGroups = deviceGroups(devices.filter(canTrigger));
   const doorbells = devices.filter((d) => d.kind === "doorbell");
   const tDevice = devices.find((d) => d.id === draft.triggerDevice);
   const tOption = tDevice && triggerOptions(tDevice).find((o) => o.id === draft.triggerOption);
@@ -282,29 +282,20 @@ function Editor({ initial, onClose }: { initial: Draft; onClose: () => void }) {
 
           {draft.when === "device" && (
             <>
-              <label className="field">
-                <span>Device</span>
-                <select value={draft.triggerDevice} onChange={(e) => set({ triggerDevice: e.target.value, triggerOption: "", triggerValue: null })}>
-                  <option value="">Choose a device…</option>
-                  {triggerDevices.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {pickerLabel(d)}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <Picker
+                label="Device"
+                placeholder="Choose a device"
+                value={draft.triggerDevice}
+                groups={triggerGroups}
+                onChange={(v) => set({ triggerDevice: v, triggerOption: "", triggerValue: null })}
+              />
               {tDevice && (
-                <label className="field">
-                  <span>When it</span>
-                  <select value={draft.triggerOption} onChange={(e) => set({ triggerOption: e.target.value, triggerValue: null })}>
-                    <option value="">Choose…</option>
-                    {triggerOptions(tDevice).map((o) => (
-                      <option key={o.id} value={o.id}>
-                        {o.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                <ChipChoice
+                  label="When it"
+                  value={draft.triggerOption}
+                  options={triggerOptions(tDevice).map((o) => ({ value: o.id, label: o.label }))}
+                  onChange={(v) => set({ triggerOption: v, triggerValue: null })}
+                />
               )}
               {tOption?.number && (
                 <NumberField input={tOption.number} value={draft.triggerValue} onChange={(v) => set({ triggerValue: v })} />
@@ -313,17 +304,12 @@ function Editor({ initial, onClose }: { initial: Draft; onClose: () => void }) {
           )}
 
           {draft.when === "event" && (
-            <label className="field">
-              <span>Doorbell</span>
-              <select value={draft.eventDevice} onChange={(e) => set({ eventDevice: e.target.value })}>
-                <option value="">Any doorbell</option>
-                {doorbells.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <ChipChoice
+              label="Doorbell"
+              value={draft.eventDevice}
+              options={[{ value: "", label: "Any doorbell" }, ...doorbells.map((d) => ({ value: d.id, label: d.name }))]}
+              onChange={(v) => set({ eventDevice: v })}
+            />
           )}
         </div>
 
