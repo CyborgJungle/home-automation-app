@@ -1,0 +1,14 @@
+[Unit]
+Description=Home automation agent
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User=pi
+WorkingDirectory=/home/pi/home-automation/agent
+ExecStart=/usr/local/bin/node --env-file=.env src/index.js
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
