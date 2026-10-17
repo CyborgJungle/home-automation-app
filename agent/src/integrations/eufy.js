@@ -73,7 +73,12 @@ export function createEufy(cfg, hub, log) {
       })
       .on('captcha request', onCaptcha)
       .on('push connect', () => log.info('listening for doorbell rings'))
-      .on('device added', pushDevice)
+      .on('push close', () => log.warn('push connection closed; rings will not arrive until it reconnects'))
+      .on('station added', (station) => log.info(`station: ${station.getName()} (${station.getModel()})`))
+      .on('device added', (device) => {
+        log.info(`device: ${device.getName()} (${device.getModel()}, doorbell: ${device.isDoorbell()})`);
+        pushDevice(device);
+      })
       .on('device property changed', (device, name) => {
         if (name === PropertyName.DeviceBattery) pushDevice(device);
       })
@@ -97,7 +102,9 @@ export function createEufy(cfg, hub, log) {
     }
     await eufy.connect(loginOptions);
 
-    for (const device of await eufy.getDevices()) pushDevice(device);
+    const devices = await eufy.getDevices();
+    log.info(`account sees ${devices.length} device(s)${devices.length ? '' : ': is the doorbell shared with this account, and the invitation accepted?'}`);
+    for (const device of devices) pushDevice(device);
   }
 
   async function execute() {
