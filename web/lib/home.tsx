@@ -1,0 +1,293 @@
+"use client";
+
+// One live connection to Supabase shared by every tab: devices, commands,
+// events, health and automations, kept current over realtime.
+
+import { useRouter } from "next/navigation";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import {
+  createClient,
+  type AgentStatus,
+  type Automation,
+  type Command,
+  type Device,
+  type HomeEvent,
+  type IntegrationStatus,
+} from "@/lib/supabase";
+
+// The agent writes a heartbeat every 30 s.
+const AGENT_OFFLINE_AFTER_MS = 90_000;
+const COMMAND_HISTORY = 40;
+const EVENT_HISTORY = 40;
+const VERSION_CHECK_MS = 2 * 60_000;
+const BUILD_ID = process.env.NEXT_PUBLIC_BUILD_ID ?? "dev";
+
+type Toast = { id: number; text: string };
+
+export type Home = {
+  ready: boolean;
+  member: boolean | null;
+  userName: string | null;
+  userEmail: string | null;
+  devices: Device[];
+  commands: Command[];
+  events: HomeEvent[];
+  automations: Automation[];
+  agent: AgentStatus | null;
+  agentOnline: boolean;
+  statuses: IntegrationStatus[];
+  toasts: Toast[];
+  updateReady: boolean;
+  send: (device: Device, action: string, params?: Record<string, unknown>) => Promise<void>;
+  saveAutomation: (a: Partial<Automation> & Pick<Automation, "name" | "trigger" | "actions">) => Promise<string | null>;
+  deleteAutomation: (id: string) => Promise<string | null>;
+  setAutomationEnabled: (id: string, enabled: boolean) => Promise<void>;
+  signOut: () => Promise<void>;
+};
+
+export const HomeContext = createContext<Home | null>(null);
+
+export function useHome() {
+  const home = useContext(HomeContext);
+  if (!home) throw new Error("useHome must be used inside <HomeProvider>");
+  return home;
+}
+
+const upsertById = <T extends { id: string | number }>(list: T[], row: T) => [
+  row,
+  ...list.filter((x) => x.id !== row.id),
+];
+
+export function HomeProvider({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+  const supabase = useMemo(() => createClient(), []);
+  const [ready, setReady] = useState(false);
+  const [member, setMember] = useState<boolean | null>(null);
+  const [user, setUser] = useState<{ name: string | null; email: string | null }>({ name: null, email: null });
+  const [devices, setDevices] = useState<Device[]>([]);
+  const [commands, setCommands] = useState<Command[]>([]);
+  const [events, setEvents] = useState<HomeEvent[]>([]);
+  const [automations, setAutomations] = useState<Automation[]>([]);
+  const [agent, setAgent] = useState<AgentStatus | null>(null);
+  const [statuses, setStatuses] = useState<IntegrationStatus[]>([]);
+  const [now, setNow] = useState(() => Date.now());
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const [updateReady, setUpdateReady] = useState(false);
+  const mine = useRef(new Set<number>()); // commands sent from this screen
+
+  const toast = useCallback((text: string) => {
+    const id = Date.now() + Math.random();
+    setToasts((list) => [...list, { id, text }]);
+    setTimeout(() => setToasts((list) => list.filter((t) => t.id !== id)), 4500);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      const [{ data: isMember }, { data: auth }] = await Promise.all([
+        supabase.rpc("am_i_member"),
+        supabase.auth.getUser(),
+      ]);
+      if (cancelled) return;
+      const meta = auth.user?.user_metadata ?? {};
+      const fullName: string | undefined = meta.given_name ?? meta.full_name ?? meta.name;
+      setUser({
+        name: fullName?.split(" ")[0] ?? auth.user?.email?.split(/[@.+]/)[0] ?? null,
+        email: auth.user?.email ?? null,
+      });
+      setMember(Boolean(isMember));
+      if (!isMember) {
+        setReady(true);
+        return;
+      }
+
+      const [d, c, e, a, s, au] = await Promise.all([
+        supabase.from("devices").select("*"),
+        supabase.from("commands").select("*").order("id", { ascending: false }).limit(COMMAND_HISTORY),
+        supabase.from("events").select("*").order("id", { ascending: false }).limit(EVENT_HISTORY),
+        supabase.from("agent_status").select("*").maybeSingle(),
+        supabase.from("integration_status").select("*"),
+        supabase.from("automations").select("*").order("created_at"),
+      ]);
+      if (cancelled) return;
+      setDevices(d.data ?? []);
+      setCommands(c.data ?? []);
+      setEvents(e.data ?? []);
+      setAgent(a.data);
+      setStatuses(s.data ?? []);
+      setAutomations(au.data ?? []);
+      setReady(true);
+    }
+
+    load();
+
+    const channel = supabase
+      .channel("home")
+      .on<Device>("postgres_changes", { event: "*", schema: "public", table: "devices" }, (p) => {
+        if (p.eventType === "DELETE") setDevices((list) => list.filter((x) => x.id !== (p.old as Device).id));
+        else setDevices((list) => upsertById(list, p.new));
+      })
+      .on<Command>("postgres_changes", { event: "*", schema: "public", table: "commands" }, (p) => {
+        if (p.eventType === "DELETE") return;
+        setCommands((list) => upsertById(list, p.new).sort((a, b) => b.id - a.id).slice(0, COMMAND_HISTORY));
+      })
+      .on<HomeEvent>("postgres_changes", { event: "INSERT", schema: "public", table: "events" }, (p) => {
+        setEvents((list) => [p.new, ...list].slice(0, EVENT_HISTORY));
+      })
+      .on<Automation>("postgres_changes", { event: "*", schema: "public", table: "automations" }, (p) => {
+        if (p.eventType === "DELETE") setAutomations((list) => list.filter((x) => x.id !== (p.old as Automation).id));
+        else setAutomations((list) => [...list.filter((x) => x.id !== p.new.id), p.new].sort((a, b) => a.created_at.localeCompare(b.created_at)));
+      })
+      .on<AgentStatus>("postgres_changes", { event: "*", schema: "public", table: "agent_status" }, (p) => {
+        if (p.eventType !== "DELETE") setAgent(p.new);
+      })
+      .on<IntegrationStatus>("postgres_changes", { event: "*", schema: "public", table: "integration_status" }, (p) => {
+        if (p.eventType === "DELETE") return;
+        setStatuses((list) => [...list.filter((x) => x.name !== p.new.name), p.new]);
+      })
+      .subscribe();
+
+    const tick = setInterval(() => setNow(Date.now()), 10_000);
+
+    // iOS keeps home-screen apps frozen in the background: catch up on return.
+    const onVisible = () => {
+      if (document.visibilityState === "visible") load();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      cancelled = true;
+      clearInterval(tick);
+      document.removeEventListener("visibilitychange", onVisible);
+      supabase.removeChannel(channel);
+    };
+  }, [supabase]);
+
+  // Tell the user when one of their taps failed.
+  useEffect(() => {
+    for (const c of commands) {
+      if (c.status === "failed" && mine.current.delete(c.id)) {
+        const device = devices.find((d) => d.id === c.device_id);
+        toast(`${device?.name ?? "Device"}: ${c.error ?? "didn't respond"}`);
+      } else if (c.status === "done") {
+        mine.current.delete(c.id);
+      }
+    }
+  }, [commands, devices, toast]);
+
+  // New deploy on Vercel → reload when the app comes back to the foreground,
+  // or offer a reload while it's open.
+  useEffect(() => {
+    if (BUILD_ID === "dev") return;
+    let stale = false;
+
+    async function check() {
+      try {
+        const res = await fetch("/api/version", { cache: "no-store" });
+        const { version } = await res.json();
+        stale = Boolean(version) && version !== BUILD_ID;
+        setUpdateReady(stale);
+      } catch {
+        // offline; try again later
+      }
+    }
+
+    const onVisible = () => {
+      if (document.visibilityState === "hidden" && stale) window.location.reload();
+      if (document.visibilityState === "visible") check();
+    };
+
+    check();
+    const timer = setInterval(check, VERSION_CHECK_MS);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, []);
+
+  const send = useCallback(
+    async (device: Device, action: string, params: Record<string, unknown> = {}) => {
+      const { data: auth } = await supabase.auth.getUser();
+      const { data, error } = await supabase
+        .from("commands")
+        .insert({ device_id: device.id, action, params, created_by: auth.user?.id })
+        .select()
+        .single();
+      if (error) {
+        toast(`Couldn't send: ${error.message}`);
+        return;
+      }
+      mine.current.add(data.id);
+      // Show it straight away; realtime confirms it a moment later.
+      setCommands((list) => upsertById(list, data as Command).sort((a, b) => b.id - a.id));
+    },
+    [supabase, toast],
+  );
+
+  const saveAutomation = useCallback<Home["saveAutomation"]>(
+    async (a) => {
+      const row = { name: a.name.trim(), trigger: a.trigger, actions: a.actions, enabled: a.enabled ?? true };
+      const { data, error } = a.id
+        ? await supabase.from("automations").update(row).eq("id", a.id).select().single()
+        : await supabase.from("automations").insert(row).select().single();
+      if (error) return error.message;
+      setAutomations((list) => [...list.filter((x) => x.id !== data.id), data].sort((x, y) => x.created_at.localeCompare(y.created_at)));
+      return null;
+    },
+    [supabase],
+  );
+
+  const deleteAutomation = useCallback(
+    async (id: string) => {
+      const { error } = await supabase.from("automations").delete().eq("id", id);
+      if (error) return error.message;
+      setAutomations((list) => list.filter((x) => x.id !== id));
+      return null;
+    },
+    [supabase],
+  );
+
+  const setAutomationEnabled = useCallback(
+    async (id: string, enabled: boolean) => {
+      setAutomations((list) => list.map((x) => (x.id === id ? { ...x, enabled } : x)));
+      const { error } = await supabase.from("automations").update({ enabled }).eq("id", id);
+      if (error) {
+        toast(`Couldn't save: ${error.message}`);
+        setAutomations((list) => list.map((x) => (x.id === id ? { ...x, enabled: !enabled } : x)));
+      }
+    },
+    [supabase, toast],
+  );
+
+  const signOut = useCallback(async () => {
+    await supabase.auth.signOut();
+    router.replace("/login");
+  }, [supabase, router]);
+
+  const agentOnline = agent?.last_seen != null && now - Date.parse(agent.last_seen) < AGENT_OFFLINE_AFTER_MS;
+
+  const value: Home = {
+    ready,
+    member,
+    userName: user.name,
+    userEmail: user.email,
+    devices,
+    commands,
+    events,
+    automations,
+    agent,
+    agentOnline,
+    statuses,
+    toasts,
+    updateReady,
+    send,
+    saveAutomation,
+    deleteAutomation,
+    setAutomationEnabled,
+    signOut,
+  };
+
+  return <HomeContext.Provider value={value}>{children}</HomeContext.Provider>;
+}

@@ -25,6 +25,7 @@ export type Command = {
   params: Record<string, unknown>;
   status: "pending" | "running" | "done" | "failed";
   error: string | null;
+  source: string; // "app" or "automation:<id>"
   created_at: string;
   completed_at: string | null;
 };
@@ -47,5 +48,31 @@ export type IntegrationStatus = {
   name: Device["integration"];
   ok: boolean;
   error: string | null;
+  updated_at: string;
+};
+
+export type AutomationTrigger =
+  | { type: "time"; at: string; days: number[] }
+  | { type: "device"; device_id: string; key: string; op: "eq" | "ne" | "lt" | "gt"; value: unknown; option?: string }
+  | { type: "event"; event: string; device_id?: string };
+
+export type AutomationAction = {
+  device_id: string;
+  action: string;
+  params: Record<string, unknown>;
+  // Which builder choice made this action, so it can be edited again.
+  option?: string;
+  value?: number | null;
+};
+
+export type Automation = {
+  id: string;
+  name: string;
+  enabled: boolean;
+  trigger: AutomationTrigger;
+  conditions: unknown[];
+  actions: AutomationAction[];
+  last_run_at: string | null;
+  created_at: string;
   updated_at: string;
 };

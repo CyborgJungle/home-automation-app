@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
+import { Blob } from "@/components/icons";
 import { createClient } from "@/lib/supabase";
 
 function LoginForm() {
@@ -41,17 +42,23 @@ function LoginForm() {
 
   return (
     <form className="login" action={signIn}>
-      <h1>Home</h1>
-      <button type="button" onClick={signInWithGoogle} disabled={busy}>
-        Sign in with Google
+      <Blob size={88} tone="var(--pink)" look="right" />
+      <h1 className="display">
+        Welcome
+        <br />
+        home
+      </h1>
+      <p className="muted">Lights, heating, blinds and more, in one place.</p>
+      <button type="button" className="pill big wide" onClick={signInWithGoogle} disabled={busy}>
+        Continue with Google
       </button>
-      <p className="muted">or with email</p>
+      <p className="divider">or with email</p>
       <input name="email" type="email" placeholder="Email" autoComplete="email" required />
       <input name="password" type="password" placeholder="Password" autoComplete="current-password" required />
-      <button type="submit" disabled={busy}>
+      <button type="submit" className="pill light big wide" disabled={busy}>
         {busy ? "Signing in…" : "Sign in"}
       </button>
-      {(error ?? callbackError) && <p className="bad">{error ?? callbackError}</p>}
+      {(error ?? callbackError) && <p className="error">{error ?? callbackError}</p>}
     </form>
   );
 }

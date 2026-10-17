@@ -14,7 +14,8 @@ A first version for testing the connections: can we reach the IKEA lights, the H
                        └─► Eufy doorbell          (Eufy cloud + push)
 ```
 
-- `web/` is a Next.js app on Vercel. It has a login (Google, or email and password) and one page listing every device, with one test button per device and a log showing whether each command worked.
+- `web/` is a Next.js app on Vercel, made to be added to an iPhone home screen (Safari → Share → **Add to Home Screen**). It has three tabs: **Home** (every device, grouped by type; tap a tile to switch it, tap › for more controls), **Automations** (simple when-this-then-that rules) and **Activity** (Pi and connection health, plus a timeline). After a new deploy the app reloads itself the next time you switch back to it.
+- **Automations run in Supabase** (`supabase/migrations/20261017000600_automation_engine.sql`): database triggers react to device changes and doorbell rings, and pg_cron checks time rules every minute (Amsterdam time). Their actions become ordinary commands, so they work with the app closed.
 - `supabase/functions/evohome/` talks to the Honeywell cloud. The database runs it every 5 minutes and right away when you press a heating button, so heating works even when the Pi is off.
 - `agent/` runs on the Raspberry Pi for the devices that need your home network or an always-on connection: the IKEA gateway, the Brel blinds, the Sony TV and the Eufy doorbell.
 - `supabase/migrations/` holds the database schema (already applied to the `home-automation` Supabase project).
