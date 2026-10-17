@@ -3,9 +3,10 @@
 import { useState } from "react";
 import { INTEGRATION_NAMES } from "@/components/devices";
 import { Blob, Icon } from "@/components/icons";
-import { timeAgo } from "@/components/ui";
+import { Switch, timeAgo } from "@/components/ui";
 import { useHome } from "@/lib/home";
 import type { Device } from "@/lib/supabase";
+import { useTheme } from "@/lib/theme";
 
 const clock = (iso: string) => new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
 
@@ -20,7 +21,74 @@ const WHERE: Record<Device["integration"], string> = {
   evohome: "Cloud",
 };
 
-export default function ActivityPage() {
+// A tiny Home screen drawn in the given scheme, like iOS Display & Brightness.
+function ThemePreview({ scheme }: { scheme: "light" | "dark" }) {
+  return (
+    <span className={`theme-preview ${scheme}`} aria-hidden="true">
+      <span className="tp-top">
+        <Blob size={16} tone="var(--pink)" />
+        <span className="tp-line short" />
+      </span>
+      <span className="tp-line" />
+      <span className="tp-line mid" />
+      <span className="tp-tiles">
+        <span className="tp-tile on tone-yellow" />
+        <span className="tp-tile" />
+        <span className="tp-tile" />
+        <span className="tp-tile on tone-lavender" />
+      </span>
+      <span className="tp-bar">
+        <span />
+      </span>
+    </span>
+  );
+}
+
+function Appearance() {
+  const { pref, setPref, dark } = useTheme();
+  const automatic = pref === "system";
+  const shown = dark ? "dark" : "light";
+
+  return (
+    <section className="section">
+      <h2 className="section-title">Appearance</h2>
+      <div className="list-card appearance">
+        <div className="theme-options" role="radiogroup" aria-label="Appearance">
+          {(["light", "dark"] as const).map((scheme) => (
+            <button
+              key={scheme}
+              role="radio"
+              aria-checked={shown === scheme}
+              className={shown === scheme ? "theme-option selected" : "theme-option"}
+              onClick={() => setPref(scheme)}
+            >
+              <span className="theme-frame">
+                <ThemePreview scheme={scheme} />
+              </span>
+              {scheme === "light" ? "Light" : "Dark"}
+              <span className="theme-radio">
+                <Icon name="check" size={15} stroke={3.2} />
+              </span>
+            </button>
+          ))}
+        </div>
+        <div className="list-row">
+          <span className="grow">
+            <strong>Match iPhone</strong>
+            <span className="muted small sub">
+              {automatic
+                ? `Follows your iPhone's Light and Dark setting, including Automatic at sunset. Now ${shown}.`
+                : `Always ${shown}, whatever your iPhone is set to.`}
+            </span>
+          </span>
+          <Switch on={automatic} label="Match iPhone appearance" onChange={(on) => setPref(on ? "system" : shown)} />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+export default function SettingsPage() {
   const { agent, agentOnline, statuses, commands, events, devices, automations, scenes, userEmail, signOut } = useHome();
   const nameOf = (id: string | null) => devices.find((d) => d.id === id)?.name ?? id ?? "–";
   const [showTimeline, setShowTimeline] = useState(false);
@@ -68,19 +136,23 @@ export default function ActivityPage() {
   return (
     <main className="page">
       <header className="title-row">
-        <h1 className="display">Activity</h1>
+        <h1 className="display">Settings</h1>
       </header>
 
-      <div className={`hero-card ${agentOnline ? "tone-sage" : "tone-peach"}`}>
-        <Blob size={56} tone={agentOnline ? "var(--ink)" : "var(--red)"} look={agentOnline ? "right" : "up"} />
-        <div>
-          <strong>Raspberry Pi {agentOnline ? "is online" : "is offline"}</strong>
-          <p>
-            Last check-in {timeAgo(agent?.last_seen)}
-            {agent?.version ? ` · agent v${agent.version}` : ""}
-          </p>
+      <Appearance />
+
+      <section className="section">
+        <div className={`hero-card ${agentOnline ? "tone-sage" : "tone-peach"}`}>
+          <Blob size={56} tone={agentOnline ? "var(--ink)" : "var(--red)"} look={agentOnline ? "right" : "up"} />
+          <div>
+            <strong>Raspberry Pi {agentOnline ? "is online" : "is offline"}</strong>
+            <p>
+              Last check-in {timeAgo(agent?.last_seen)}
+              {agent?.version ? ` · agent v${agent.version}` : ""}
+            </p>
+          </div>
         </div>
-      </div>
+      </section>
 
       <section className="section">
         <h2 className="section-title">Connections</h2>

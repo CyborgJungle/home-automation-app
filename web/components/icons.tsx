@@ -1,5 +1,19 @@
 // Small stroke icons (24×24), drawn to match the chunky type.
 
+// An eight-tooth cog with flat-topped, slightly tapered teeth.
+function cog(teeth: number, outer: number, inner: number) {
+  const pt = (angle: number, r: number) => `${(12 + r * Math.sin(angle)).toFixed(2)} ${(12 - r * Math.cos(angle)).toFixed(2)}`;
+  const step = (Math.PI * 2) / teeth;
+  let d = "";
+  for (let i = 0; i < teeth; i++) {
+    const c = i * step;
+    d += `${i ? "L" : "M"}${pt(c - step * 0.36, inner)}L${pt(c - step * 0.2, outer)}L${pt(c + step * 0.2, outer)}L${pt(c + step * 0.36, inner)}`;
+  }
+  return d + "Z";
+}
+
+const COG = cog(8, 9.6, 7.2);
+
 const PATHS: Record<string, React.ReactNode> = {
   sun: <><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></>,
   cloud: <path d="M7 18h11a4 4 0 0 0 .4-8A6.5 6.5 0 0 0 6 9a4.5 4.5 0 0 0 1 9Z" />,
@@ -18,6 +32,12 @@ const PATHS: Record<string, React.ReactNode> = {
     </>
   ),
   pulse: <path d="M3 12h4l2.5-6 5 12 2.5-6h4" />,
+  settings: (
+    <>
+      <path d={COG} />
+      <circle cx="12" cy="12" r="3" />
+    </>
+  ),
   bulb: (
     <>
       <path d="M9 18h6M10 21h4" />
@@ -201,8 +221,8 @@ export function Blob({
         <circle cx="24" cy="38" r="7" fill="#fff" />
         <circle cx="40" cy="38" r="7" fill="#fff" />
         <g className="blob-pupils">
-          <circle cx={24 + dx} cy={38 + dy} r="3.6" fill="var(--ink)" />
-          <circle cx={40 + dx} cy={38 + dy} r="3.6" fill="var(--ink)" />
+          <circle cx={24 + dx} cy={38 + dy} r="3.6" fill="var(--on-tone)" />
+          <circle cx={40 + dx} cy={38 + dy} r="3.6" fill="var(--on-tone)" />
         </g>
       </g>
     </svg>
@@ -271,12 +291,12 @@ export function SceneArt({ shape, tone, awake, size = 84 }: { shape: string; ton
         <>
           <circle cx="38" cy="54" r="9" fill="#fff" />
           <circle cx="62" cy="54" r="9" fill="#fff" />
-          <circle cx="39.5" cy="51.5" r="4.6" fill="var(--ink)" />
-          <circle cx="63.5" cy="51.5" r="4.6" fill="var(--ink)" />
-          <path d="M42 68q8 7 16 0" fill="none" stroke="var(--ink)" strokeWidth="4" strokeLinecap="round" />
+          <circle cx="39.5" cy="51.5" r="4.6" fill="var(--on-tone)" />
+          <circle cx="63.5" cy="51.5" r="4.6" fill="var(--on-tone)" />
+          <path d="M42 68q8 7 16 0" fill="none" stroke="var(--on-tone)" strokeWidth="4" strokeLinecap="round" />
         </>
       ) : (
-        <g fill="none" stroke="var(--ink)" strokeWidth="4" strokeLinecap="round">
+        <g fill="none" stroke="var(--on-tone)" strokeWidth="4" strokeLinecap="round">
           <path d="M31 55q7 6 14 0" />
           <path d="M55 55q7 6 14 0" />
         </g>

@@ -1,5 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque } from "next/font/google";
+import Script from "next/script";
+import { ThemeSync } from "@/lib/theme";
+import { THEME_COLORS, THEME_SCRIPT } from "@/lib/theme-script";
 import "./globals.css";
 
 const font = Bricolage_Grotesque({ subsets: ["latin"], variable: "--font", display: "swap" });
@@ -16,13 +19,26 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#f4eee3",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: THEME_COLORS.light },
+    { media: "(prefers-color-scheme: dark)", color: THEME_COLORS.dark },
+  ],
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={font.variable}>
-      <body>{children}</body>
+      <head>
+        {/* Follows the iPhone by default; Settings can pin light or dark (lib/theme.ts). */}
+        <meta name="color-scheme" content="light dark" suppressHydrationWarning />
+        <Script id="theme" strategy="beforeInteractive">
+          {THEME_SCRIPT}
+        </Script>
+      </head>
+      <body>
+        <ThemeSync />
+        {children}
+      </body>
     </html>
   );
 }

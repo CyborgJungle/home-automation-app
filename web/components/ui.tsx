@@ -12,7 +12,7 @@ const TABS: { href: string; label: string; icon: IconKey }[] = [
   { href: "/", label: "Home", icon: "home" },
   { href: "/scenes", label: "Scenes", icon: "sparkle" },
   { href: "/automations", label: "Automations", icon: "bolt" },
-  { href: "/activity", label: "Activity", icon: "pulse" },
+  { href: "/settings", label: "Settings", icon: "settings" },
 ];
 
 export function PiStatus({ inline = false }: { inline?: boolean }) {
