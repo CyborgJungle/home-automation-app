@@ -38,7 +38,7 @@ export const config = {
       }
     : null,
 
-  bravia: env.BRAVIA_HOST
+  bravia: env.BRAVIA_HOST && env.BRAVIA_PSK
     ? {
         host: env.BRAVIA_HOST,
         psk: env.BRAVIA_PSK,
