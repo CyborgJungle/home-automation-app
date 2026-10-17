@@ -15,18 +15,20 @@ const TABS: { href: string; label: string; icon: IconKey }[] = [
   { href: "/activity", label: "Activity", icon: "pulse" },
 ];
 
-export function PiStatus() {
+export function PiStatus({ inline = false }: { inline?: boolean }) {
+  const path = usePathname();
   const { agent, agentOnline, devices } = useHome();
+  if (!inline && path === "/") return null;
   if (!agent && !devices.some((d) => ON_PI.includes(d.integration))) return null;
 
-  return (
-    <div className="app-status">
-      <span className={`pi-status${agentOnline ? "" : " offline"}`} role="status" aria-label={`Raspberry Pi ${agentOnline ? "online" : "offline"}`}>
-        <span className="pi-status-dot" aria-hidden="true" />
-        Pi {agentOnline ? "online" : "offline"}
-      </span>
-    </div>
+  const status = (
+    <span className={`pi-status${agentOnline ? "" : " offline"}`} role="status" aria-label={`Raspberry Pi ${agentOnline ? "online" : "offline"}`}>
+      <span className="pi-status-dot" aria-hidden="true" />
+      Pi {agentOnline ? "online" : "offline"}
+    </span>
   );
+
+  return inline ? status : <div className="app-status">{status}</div>;
 }
 
 export function TabBar() {

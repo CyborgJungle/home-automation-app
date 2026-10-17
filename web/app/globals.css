@@ -228,6 +228,20 @@ p {
   font-weight: 600;
 }
 
+.hello-row > svg {
+  flex-shrink: 0;
+}
+
+.hello-row > .muted {
+  flex: 1;
+  min-width: 0;
+}
+
+.hello-row > .pi-status {
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
 .title-row .display {
   font-size: clamp(32px, 9vw, 42px);
 }

@@ -3,6 +3,7 @@
 import { useState, useSyncExternalStore } from "react";
 import { DeviceSheet, DeviceTile } from "@/components/devices";
 import { Blob, Icon } from "@/components/icons";
+import { PiStatus } from "@/components/ui";
 import { CATEGORIES, displayState, isActive, lowBattery, num, ON_PI, type IconName } from "@/lib/devices";
 import { useHome } from "@/lib/home";
 import type { Device } from "@/lib/supabase";
@@ -150,6 +151,7 @@ export default function DevicesPage() {
             {greeting()}
             {userName ? `, ${userName.replace(/^./, (c) => c.toUpperCase())}` : ""}
           </span>
+          <PiStatus inline />
         </div>
         <h1 className="display">
           Here&apos;s your
