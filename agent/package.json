@@ -1,0 +1,23 @@
+{
+  "name": "home-agent",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Runs on the Raspberry Pi: talks to TRÅDFRI and Eufy, and syncs with Supabase.",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node --env-file=.env src/index.js",
+    "discover": "node --env-file=.env scripts/discover.js",
+    "pair-tradfri": "node --env-file-if-exists=.env scripts/pair-tradfri.js",
+    "check": "node --check src/index.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.118.0",
+    "node-tradfri-client": "^3.2.0"
+  },
+  "optionalDependencies": {
+    "eufy-security-client": "^3.8.0"
+  }
+}
