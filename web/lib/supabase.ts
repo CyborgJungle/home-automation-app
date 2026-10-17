@@ -60,6 +60,8 @@ export type AutomationAction = {
   device_id: string;
   action: string;
   params: Record<string, unknown>;
+  // Set instead of a device action when an automation plays a scene.
+  scene_id?: string;
   // Which builder choice made this action, so it can be edited again.
   option?: string;
   value?: number | null;
@@ -72,6 +74,22 @@ export type Automation = {
   trigger: AutomationTrigger;
   conditions: unknown[];
   actions: AutomationAction[];
+  last_run_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export const SCENE_SHAPES = ["house", "flower", "circle", "star", "squircle", "cloud"] as const;
+export type SceneShape = (typeof SCENE_SHAPES)[number];
+
+export type SceneAction = Pick<AutomationAction, "device_id" | "action" | "params" | "option" | "value">;
+
+export type Scene = {
+  id: string;
+  name: string;
+  tone: string;
+  shape: SceneShape;
+  actions: SceneAction[];
   last_run_at: string | null;
   created_at: string;
   updated_at: string;

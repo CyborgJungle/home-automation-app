@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { ActionRows, buildActions, emptyRow, NumberField, toRows, type ActionRow } from "@/components/actions";
 import { Blob, Icon, type IconKey } from "@/components/icons";
 import { Sheet, Switch, timeAgo } from "@/components/ui";
 import { DAYS, describeTrigger, summary, WEEK } from "@/lib/automations";
-import { actionOptions, canAct, canTrigger, pickerLabel, triggerOptions } from "@/lib/devices";
+import { canTrigger, pickerLabel, triggerOptions } from "@/lib/devices";
 import { useHome } from "@/lib/home";
-import type { Automation, AutomationAction, AutomationTrigger, Device } from "@/lib/supabase";
+import type { Automation, AutomationAction, AutomationTrigger, Device, Scene } from "@/lib/supabase";
 
 type When = "time" | "device" | "event";
 
@@ -21,7 +22,7 @@ type Draft = {
   triggerOption: string;
   triggerValue: number | null;
   eventDevice: string; // "" = any doorbell
-  actions: { device_id: string; option: string; value: number | null }[];
+  actions: ActionRow[];
 };
 
 const WHEN: { id: When; label: string; icon: IconKey; tone: string }[] = [
@@ -43,7 +44,7 @@ function emptyDraft(): Draft {
     triggerOption: "",
     triggerValue: null,
     eventDevice: "",
-    actions: [{ device_id: "", option: "", value: null }],
+    actions: [emptyRow()],
   };
 }
 
@@ -62,12 +63,12 @@ function toDraft(a: Automation): Draft {
     triggerOption: t.type === "device" ? t.option ?? "" : "",
     triggerValue: t.type === "device" && typeof t.value === "number" ? t.value : null,
     eventDevice: t.type === "event" ? t.device_id ?? "" : "",
-    actions: a.actions.map((x) => ({ device_id: x.device_id, option: x.option ?? "", value: x.value ?? null })),
+    actions: toRows(a.actions),
   };
 }
 
 // Turns the form into the trigger/actions the Supabase engine runs, or explains what's missing.
-function build(draft: Draft, devices: Device[]): { trigger: AutomationTrigger; actions: AutomationAction[] } | string {
+function build(draft: Draft, devices: Device[], scenes: Scene[]): { trigger: AutomationTrigger; actions: AutomationAction[] } | string {
   let trigger: AutomationTrigger;
   if (draft.when === "time") {
     if (!/^\d{2}:\d{2}$/.test(draft.at)) return "Pick a time.";
@@ -85,15 +86,8 @@ function build(draft: Draft, devices: Device[]): { trigger: AutomationTrigger; a
       : { type: "event", event: "doorbell.ring" };
   }
 
-  const actions: AutomationAction[] = [];
-  for (const row of draft.actions) {
-    const device = devices.find((d) => d.id === row.device_id);
-    const option = device && actionOptions(device).find((o) => o.id === row.option);
-    if (!device || !option) return "Every action needs a device and what to do.";
-    const value = option.number ? row.value ?? option.number.default : null;
-    actions.push({ device_id: device.id, action: option.action, params: option.params(value), option: option.id, value });
-  }
-  if (!actions.length) return "Add at least one action.";
+  const actions = buildActions(draft.actions, devices, scenes);
+  if (typeof actions === "string") return actions;
   return { trigger, actions };
 }
 
@@ -132,7 +126,7 @@ function ideas(devices: Device[]): { title: string; tone: string; draft: Draft }
 }
 
 export default function AutomationsPage() {
-  const { automations, devices, setAutomationEnabled } = useHome();
+  const { automations, devices, scenes, setAutomationEnabled } = useHome();
   const [draft, setDraft] = useState<Draft | null>(null);
 
   return (
@@ -155,7 +149,7 @@ export default function AutomationsPage() {
 
       <div className="stack">
         {automations.map((a) => {
-          const { when, then } = summary(a, devices);
+          const { when, then } = summary(a, devices, scenes);
           const w = WHEN.find((x) => x.id === a.trigger.type)!;
           return (
             <article
@@ -203,7 +197,7 @@ export default function AutomationsPage() {
 }
 
 function Editor({ initial, onClose }: { initial: Draft; onClose: () => void }) {
-  const { devices, saveAutomation, deleteAutomation, send } = useHome();
+  const { devices, scenes, saveAutomation, deleteAutomation, send, playScene } = useHome();
   const [draft, setDraft] = useState(initial);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -211,13 +205,12 @@ function Editor({ initial, onClose }: { initial: Draft; onClose: () => void }) {
 
   const byLabel = (a: Device, b: Device) => pickerLabel(a).localeCompare(pickerLabel(b));
   const triggerDevices = devices.filter(canTrigger).sort(byLabel);
-  const actionDevices = devices.filter(canAct).sort(byLabel);
   const doorbells = devices.filter((d) => d.kind === "doorbell");
   const tDevice = devices.find((d) => d.id === draft.triggerDevice);
   const tOption = tDevice && triggerOptions(tDevice).find((o) => o.id === draft.triggerOption);
 
   async function save() {
-    const built = build(draft, devices);
+    const built = build(draft, devices, scenes);
     if (typeof built === "string") return setError(built);
     setSaving(true);
     const name = draft.name.trim() || describeTrigger(built.trigger, devices);
@@ -228,11 +221,13 @@ function Editor({ initial, onClose }: { initial: Draft; onClose: () => void }) {
   }
 
   async function runNow() {
-    const built = build(draft, devices);
+    const built = build(draft, devices, scenes);
     if (typeof built === "string") return setError(built);
     for (const a of built.actions) {
+      const scene = a.scene_id && scenes.find((x) => x.id === a.scene_id);
       const device = devices.find((d) => d.id === a.device_id);
-      if (device) await send(device, a.action, a.params);
+      if (scene) await playScene(scene);
+      else if (device) await send(device, a.action, a.params);
     }
   }
 
@@ -334,46 +329,7 @@ function Editor({ initial, onClose }: { initial: Draft; onClose: () => void }) {
 
         <div className="block tone-mint">
           <span className="badge">Then</span>
-          {draft.actions.map((row, i) => {
-            const device = devices.find((d) => d.id === row.device_id);
-            const options = device ? actionOptions(device) : [];
-            const option = options.find((o) => o.id === row.option);
-            const update = (patch: Partial<Draft["actions"][number]>) =>
-              set({ actions: draft.actions.map((x, j) => (j === i ? { ...x, ...patch } : x)) });
-            return (
-              <div key={i} className="action-row">
-                <div className="action-fields">
-                  <select aria-label="Device" value={row.device_id} onChange={(e) => update({ device_id: e.target.value, option: "", value: null })}>
-                    <option value="">Choose a device…</option>
-                    {actionDevices.map((d) => (
-                      <option key={d.id} value={d.id}>
-                        {pickerLabel(d)}
-                      </option>
-                    ))}
-                  </select>
-                  {device && (
-                    <select aria-label="Action" value={row.option} onChange={(e) => update({ option: e.target.value, value: null })}>
-                      <option value="">Do what?</option>
-                      {options.map((o) => (
-                        <option key={o.id} value={o.id}>
-                          {o.label}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                  {option?.number && <NumberField input={option.number} value={row.value} onChange={(v) => update({ value: v })} />}
-                </div>
-                {draft.actions.length > 1 && (
-                  <button className="round small" aria-label="Remove action" onClick={() => set({ actions: draft.actions.filter((_, j) => j !== i) })}>
-                    <Icon name="close" size={14} />
-                  </button>
-                )}
-              </div>
-            );
-          })}
-          <button className="pill light small" onClick={() => set({ actions: [...draft.actions, { device_id: "", option: "", value: null }] })}>
-            <Icon name="plus" size={16} /> Add action
-          </button>
+          <ActionRows rows={draft.actions} onChange={(actions) => set({ actions })} devices={devices} scenes={scenes} />
         </div>
 
         {error && <p className="error">{error}</p>}
@@ -393,32 +349,5 @@ function Editor({ initial, onClose }: { initial: Draft; onClose: () => void }) {
         </div>
       </div>
     </Sheet>
-  );
-}
-
-function NumberField({
-  input,
-  value,
-  onChange,
-}: {
-  input: { min: number; max: number; step: number; unit: string; default: number };
-  value: number | null;
-  onChange: (v: number) => void;
-}) {
-  const v = value ?? input.default;
-  const clamp = (n: number) => Math.min(input.max, Math.max(input.min, Math.round(n / input.step) * input.step));
-  return (
-    <div className="number-field">
-      <button className="round" aria-label="Less" onClick={() => onChange(clamp(v - input.step))}>
-        <Icon name="minus" size={16} />
-      </button>
-      <strong>
-        {v}
-        <small>{input.unit}</small>
-      </strong>
-      <button className="round" aria-label="More" onClick={() => onChange(clamp(v + input.step))}>
-        <Icon name="plus" size={16} />
-      </button>
-    </div>
   );
 }

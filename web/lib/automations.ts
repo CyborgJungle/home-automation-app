@@ -1,7 +1,7 @@
 // Plain-English summaries of automations, for the list and the builder.
 
 import { actionOptions, triggerOptions } from "@/lib/devices";
-import type { Automation, AutomationAction, AutomationTrigger, Device } from "@/lib/supabase";
+import type { Automation, AutomationAction, AutomationTrigger, Device, Scene } from "@/lib/supabase";
 
 export const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 // Shown Monday first, as on a calendar.
@@ -37,7 +37,13 @@ export function describeAction(a: AutomationAction, devices: Device[]) {
   return `${label}${value}`.replace(/^./, (c) => c.toLowerCase());
 }
 
-export function summary(a: Automation, devices: Device[]) {
-  const then = a.actions.map((x) => `${nameOf(devices, x.device_id)}: ${describeAction(x, devices)}`).join(", ");
+export function summary(a: Automation, devices: Device[], scenes: Scene[] = []) {
+  const then = a.actions
+    .map((x) =>
+      x.scene_id
+        ? `play “${scenes.find((s) => s.id === x.scene_id)?.name ?? "a removed scene"}”`
+        : `${nameOf(devices, x.device_id)}: ${describeAction(x, devices)}`,
+    )
+    .join(", ");
   return { when: describeTrigger(a.trigger, devices), then: then || "nothing yet" };
 }

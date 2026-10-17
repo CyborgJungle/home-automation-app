@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Home",
-    short_name: "Home",
+    name: "Home Automation",
+    short_name: "Home Automation",
     description: "Lights, heating, blinds and more, in one place",
     start_url: "/",
     scope: "/",

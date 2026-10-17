@@ -5,9 +5,10 @@ import "./globals.css";
 const font = Bricolage_Grotesque({ subsets: ["latin"], variable: "--font", display: "swap" });
 
 export const metadata: Metadata = {
-  title: "Home",
+  title: "Home Automation",
   description: "Lights, heating, blinds and more, in one place",
-  appleWebApp: { capable: true, title: "Home", statusBarStyle: "default" },
+  // The name under the icon when added to the iPhone home screen.
+  appleWebApp: { capable: true, title: "Home Automation", statusBarStyle: "default" },
   formatDetection: { telephone: false },
 };
 

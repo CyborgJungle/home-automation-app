@@ -18,29 +18,46 @@ const WHERE: Record<Device["integration"], string> = {
 };
 
 export default function ActivityPage() {
-  const { agent, agentOnline, statuses, commands, events, devices, automations, userEmail, signOut } = useHome();
+  const { agent, agentOnline, statuses, commands, events, devices, automations, scenes, userEmail, signOut } = useHome();
   const nameOf = (id: string | null) => devices.find((d) => d.id === id)?.name ?? id ?? "–";
 
   type Item = { key: string; at: string; title: string; detail: string; tone: string; status?: string };
   const items: Item[] = [
     ...commands.map((c) => {
       const automation = c.source?.startsWith("automation:") ? automations.find((a) => `automation:${a.id}` === c.source) : null;
+      const scene = c.source?.startsWith("scene:") ? scenes.find((s) => `scene:${s.id}` === c.source) : null;
       const took = c.completed_at ? ` · ${((Date.parse(c.completed_at) - Date.parse(c.created_at)) / 1000).toFixed(1)}s` : "";
       return {
         key: `c${c.id}`,
         at: c.created_at,
         title: nameOf(c.device_id),
-        detail: `${c.action} ${Object.entries(c.params ?? {}).map(([k, v]) => `${k} ${v}`).join(", ")}${took}${automation ? ` · by “${automation.name}”` : ""}${c.error ? ` · ${c.error}` : ""}`,
-        tone: c.status === "failed" ? "red" : automation ? "lavender" : "sand",
+        detail: `${c.action} ${Object.entries(c.params ?? {}).map(([k, v]) => `${k} ${v}`).join(", ")}${took}${automation ? ` · by “${automation.name}”` : ""}${scene ? ` · scene “${scene.name}”` : ""}${c.error ? ` · ${c.error}` : ""}`,
+        tone: c.status === "failed" ? "red" : automation ? "lavender" : scene ? "pink" : "sand",
         status: c.status,
       };
     }),
     ...events.map((e) => ({
       key: `e${e.id}`,
       at: e.created_at,
-      title: e.type === "doorbell.ring" ? "Doorbell rang" : e.type === "automation.run" ? `Ran “${String(e.data.name ?? "automation")}”` : e.type,
-      detail: e.type === "doorbell.ring" ? nameOf(e.device_id) : e.type === "automation.run" ? `Started by ${String(e.data.cause ?? "a trigger")}` : "",
-      tone: e.type === "doorbell.ring" ? "sage" : "lavender",
+      title:
+        e.type === "doorbell.ring"
+          ? "Doorbell rang"
+          : e.type === "automation.run"
+            ? `Ran “${String(e.data.name ?? "automation")}”`
+            : e.type === "scene.run"
+              ? `Played “${String(e.data.name ?? "scene")}”`
+              : e.type,
+      detail:
+        e.type === "doorbell.ring"
+          ? nameOf(e.device_id)
+          : e.type === "automation.run"
+            ? `Started by ${String(e.data.cause ?? "a trigger")}`
+            : e.type === "scene.run"
+              ? String(e.data.source ?? "").startsWith("automation:")
+                ? `By automation “${automations.find((a) => `automation:${a.id}` === e.data.source)?.name ?? "removed"}”`
+                : "From the app"
+              : "",
+      tone: e.type === "doorbell.ring" ? "sage" : e.type === "scene.run" ? "pink" : "lavender",
     })),
   ].sort((a, b) => b.at.localeCompare(a.at));
 

@@ -3,6 +3,18 @@
 const PATHS: Record<string, React.ReactNode> = {
   home: <path d="M4 11.5 12 5l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5h-5v5H5a1 1 0 0 1-1-1z" />,
   bolt: <path d="M13 3 5 13.5h6L10 21l8-10.5h-6z" />,
+  sparkle: (
+    <>
+      <path d="M12 3c.6 4.6 2.4 6.4 7 7-4.6.6-6.4 2.4-7 7-.6-4.6-2.4-6.4-7-7 4.6-.6 6.4-2.4 7-7z" />
+      <path d="M19 15.5c.3 1.9 1 2.6 2.5 2.9-1.5.3-2.2 1-2.5 2.9-.3-1.9-1-2.6-2.5-2.9 1.5-.3 2.2-1 2.5-2.9z" />
+    </>
+  ),
+  pencil: (
+    <>
+      <path d="M4 20h4L19.5 8.5a2.8 2.8 0 0 0-4-4L4 16z" />
+      <path d="m13.5 6.5 4 4" />
+    </>
+  ),
   pulse: <path d="M3 12h4l2.5-6 5 12 2.5-6h4" />,
   bulb: (
     <>
@@ -150,6 +162,82 @@ export function Blob({ size = 64, tone = "var(--pink)", look = "right" }: { size
       <circle cx="40" cy="38" r="7" fill="#fff" />
       <circle cx={24 + dx} cy={38 + dy} r="3.6" fill="var(--ink)" />
       <circle cx={40 + dx} cy={38 + dy} r="3.6" fill="var(--ink)" />
+    </svg>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Scene characters: a shape with a face. Asleep when the scene isn't on,
+// awake and smiling when it is.
+
+function wavy(points: number, base: number, depth: number) {
+  const steps = 120;
+  let d = "";
+  for (let i = 0; i <= steps; i++) {
+    const t = (i / steps) * Math.PI * 2;
+    const r = base + depth * Math.cos(points * t);
+    d += `${i ? "L" : "M"}${(50 + r * Math.sin(t)).toFixed(2)} ${(52 - r * Math.cos(t)).toFixed(2)}`;
+  }
+  return d + "Z";
+}
+
+function star(points: number, outer: number, inner: number) {
+  let d = "";
+  for (let i = 0; i < points * 2; i++) {
+    const t = (i / (points * 2)) * Math.PI * 2;
+    const r = i % 2 ? inner : outer;
+    d += `${i ? "L" : "M"}${(50 + r * Math.sin(t)).toFixed(2)} ${(54 - r * Math.cos(t)).toFixed(2)}`;
+  }
+  return d + "Z";
+}
+
+const FLOWER = wavy(9, 40, 6);
+const STAR = star(5, 46, 26);
+
+function Body({ shape }: { shape: string }) {
+  switch (shape) {
+    case "flower":
+      return <path d={FLOWER} />;
+    case "circle":
+      return <circle cx="50" cy="52" r="42" />;
+    case "star":
+      return <path d={STAR} strokeWidth="12" strokeLinejoin="round" stroke="currentColor" />;
+    case "squircle":
+      return <rect x="10" y="12" width="80" height="80" rx="30" />;
+    case "cloud":
+      return (
+        <>
+          <circle cx="34" cy="56" r="24" />
+          <circle cx="56" cy="40" r="28" />
+          <circle cx="72" cy="60" r="20" />
+          <rect x="14" y="56" width="74" height="28" rx="14" />
+        </>
+      );
+    default:
+      return <path d="M12 47.7 46.9 14.5a4.7 4.7 0 0 1 6.2 0L88 47.7c2 1.9 3.1 4.5 3.1 7.3v26.2a9.4 9.4 0 0 1-9.4 9.4H18.3a9.4 9.4 0 0 1-9.4-9.4V55c0-2.8 1.1-5.4 3.1-7.3z" />;
+  }
+}
+
+export function SceneArt({ shape, tone, awake, size = 84 }: { shape: string; tone: string; awake: boolean; size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 100 100" aria-hidden="true" className="scene-art" style={{ color: `var(--${tone})` }}>
+      <g fill="currentColor">
+        <Body shape={shape} />
+      </g>
+      {awake ? (
+        <>
+          <circle cx="38" cy="54" r="9" fill="#fff" />
+          <circle cx="62" cy="54" r="9" fill="#fff" />
+          <circle cx="39.5" cy="51.5" r="4.6" fill="var(--ink)" />
+          <circle cx="63.5" cy="51.5" r="4.6" fill="var(--ink)" />
+          <path d="M42 68q8 7 16 0" fill="none" stroke="var(--ink)" strokeWidth="4" strokeLinecap="round" />
+        </>
+      ) : (
+        <g fill="none" stroke="var(--ink)" strokeWidth="4" strokeLinecap="round">
+          <path d="M31 55q7 6 14 0" />
+          <path d="M55 55q7 6 14 0" />
+        </g>
+      )}
     </svg>
   );
 }

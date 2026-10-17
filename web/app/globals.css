@@ -544,7 +544,7 @@ button.chip.selected {
 }
 
 .tab.active {
-  flex: 1.9;
+  flex: 2.4;
   background: var(--paper);
   color: var(--ink);
 }
@@ -877,6 +877,190 @@ button.chip.selected {
   text-align: left;
   font-weight: 650;
   transition: transform 0.12s;
+}
+
+/* ---------------------------------------------------------------- scenes */
+
+.subtitle {
+  margin-top: 6px;
+  font-weight: 600;
+}
+
+.scene-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.scene-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 196px;
+  padding: 16px;
+  border-radius: 28px;
+  /* Off: a softer wash of the scene's colour. On: the full colour. */
+  background: color-mix(in srgb, var(--tone) 42%, var(--paper));
+  border: 1.5px solid var(--line);
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: background 0.25s, transform 0.2s, box-shadow 0.25s;
+}
+
+.scene-card.tilt-l {
+  transform: rotate(-1.2deg);
+}
+
+.scene-card.tilt-r {
+  transform: rotate(1.2deg);
+}
+
+.scene-card.on {
+  background: var(--tone);
+  border-color: transparent;
+  box-shadow: 0 10px 0 -2px var(--ink);
+}
+
+.scene-card:active {
+  transform: rotate(0) scale(0.96);
+}
+
+.scene-face {
+  margin: 2px 0 auto;
+}
+
+.scene-card .scene-art {
+  filter: drop-shadow(0 3px 0 rgba(21, 21, 21, 0.12));
+}
+
+.scene-card.on .scene-art {
+  animation: wiggle 0.5s ease-out;
+}
+
+@keyframes wiggle {
+  30% {
+    transform: rotate(-8deg) scale(1.05);
+  }
+  60% {
+    transform: rotate(6deg);
+  }
+}
+
+.scene-card h3 {
+  margin-top: 12px;
+  font-size: 21px;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  line-height: 1.05;
+}
+
+.scene-meta {
+  margin-top: 6px;
+  min-height: 26px;
+  display: flex;
+  align-items: center;
+}
+
+.scene-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 11px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.spinner.light {
+  width: 12px;
+  height: 12px;
+  border-color: rgba(255, 251, 244, 0.3);
+  border-top-color: var(--paper);
+}
+
+.scene-edit {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--paper);
+  border: 1.5px solid var(--line);
+}
+
+.scene-empty {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px;
+  margin-bottom: 14px;
+  border-radius: var(--r-lg);
+  background: var(--paper);
+  border: 1.5px dashed var(--line);
+  color: var(--ink-2);
+}
+
+.scene-empty strong {
+  color: var(--ink);
+}
+
+.scene-studio {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  border-radius: var(--r-lg);
+  background: color-mix(in srgb, var(--tone) 40%, var(--paper));
+}
+
+.scene-studio > .scene-art {
+  flex: none;
+}
+
+.studio-pickers {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.shape-picker,
+.tone-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.shape-picker button {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.shape-picker button.selected {
+  background: var(--paper);
+  box-shadow: inset 0 0 0 2.5px var(--ink);
+}
+
+.tone-picker button {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--tone);
+  border: 2px solid rgba(21, 21, 21, 0.15);
+}
+
+.tone-picker button.selected {
+  box-shadow: 0 0 0 3px var(--paper), 0 0 0 5.5px var(--ink);
 }
 
 /* --------------------------------------------------------------- editor */

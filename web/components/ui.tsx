@@ -8,6 +8,7 @@ import { useHome } from "@/lib/home";
 
 const TABS: { href: string; label: string; icon: IconKey }[] = [
   { href: "/", label: "Home", icon: "home" },
+  { href: "/scenes", label: "Scenes", icon: "sparkle" },
   { href: "/automations", label: "Automations", icon: "bolt" },
   { href: "/activity", label: "Activity", icon: "pulse" },
 ];
@@ -117,7 +118,17 @@ export function Slider({
   const bar = useRef<HTMLDivElement>(null);
   const draft = useRef<number | null>(null);
   const [shown, setShown] = useState<number | null>(null);
-  const current = shown ?? value;
+  const [sent, setSent] = useState<number | null>(null);
+  // Keep showing what was sent until the device reports (about) that value,
+  // or give up after a few seconds if it never does.
+  const holding = sent !== null && Math.abs(value - sent) > step;
+  const current = shown ?? (holding ? sent : value);
+
+  useEffect(() => {
+    if (sent === null) return;
+    const timer = setTimeout(() => setSent(null), 5000);
+    return () => clearTimeout(timer);
+  }, [sent]);
   const pct = ((current - min) / (max - min)) * 100;
 
   const clamp = (n: number) => Math.min(max, Math.max(min, Math.round(n / step) * step));
@@ -130,7 +141,11 @@ export function Slider({
     setShown(n);
   };
   const commit = () => {
-    if (draft.current !== null && draft.current !== value) onCommit(draft.current);
+    const n = draft.current;
+    if (n !== null && n !== (holding ? sent : value)) {
+      setSent(n);
+      onCommit(n);
+    }
     draft.current = null;
     setShown(null);
   };

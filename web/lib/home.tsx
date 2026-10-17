@@ -13,6 +13,7 @@ import {
   type Device,
   type HomeEvent,
   type IntegrationStatus,
+  type Scene,
 } from "@/lib/supabase";
 
 // The agent writes a heartbeat every 30 s.
@@ -33,6 +34,7 @@ export type Home = {
   commands: Command[];
   events: HomeEvent[];
   automations: Automation[];
+  scenes: Scene[];
   agent: AgentStatus | null;
   agentOnline: boolean;
   statuses: IntegrationStatus[];
@@ -42,6 +44,9 @@ export type Home = {
   saveAutomation: (a: Partial<Automation> & Pick<Automation, "name" | "trigger" | "actions">) => Promise<string | null>;
   deleteAutomation: (id: string) => Promise<string | null>;
   setAutomationEnabled: (id: string, enabled: boolean) => Promise<void>;
+  playScene: (scene: Scene) => Promise<void>;
+  saveScene: (s: Partial<Scene> & Pick<Scene, "name" | "tone" | "shape" | "actions">) => Promise<string | null>;
+  deleteScene: (id: string) => Promise<string | null>;
   signOut: () => Promise<void>;
 };
 
@@ -68,6 +73,7 @@ export function HomeProvider({ children }: { children: React.ReactNode }) {
   const [commands, setCommands] = useState<Command[]>([]);
   const [events, setEvents] = useState<HomeEvent[]>([]);
   const [automations, setAutomations] = useState<Automation[]>([]);
+  const [scenes, setScenes] = useState<Scene[]>([]);
   const [agent, setAgent] = useState<AgentStatus | null>(null);
   const [statuses, setStatuses] = useState<IntegrationStatus[]>([]);
   const [now, setNow] = useState(() => Date.now());
@@ -102,13 +108,14 @@ export function HomeProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      const [d, c, e, a, s, au] = await Promise.all([
+      const [d, c, e, a, s, au, sc] = await Promise.all([
         supabase.from("devices").select("*"),
         supabase.from("commands").select("*").order("id", { ascending: false }).limit(COMMAND_HISTORY),
         supabase.from("events").select("*").order("id", { ascending: false }).limit(EVENT_HISTORY),
         supabase.from("agent_status").select("*").maybeSingle(),
         supabase.from("integration_status").select("*"),
         supabase.from("automations").select("*").order("created_at"),
+        supabase.from("scenes").select("*").order("created_at"),
       ]);
       if (cancelled) return;
       setDevices(d.data ?? []);
@@ -117,6 +124,7 @@ export function HomeProvider({ children }: { children: React.ReactNode }) {
       setAgent(a.data);
       setStatuses(s.data ?? []);
       setAutomations(au.data ?? []);
+      setScenes(sc.data ?? []);
       setReady(true);
     }
 
@@ -138,6 +146,10 @@ export function HomeProvider({ children }: { children: React.ReactNode }) {
       .on<Automation>("postgres_changes", { event: "*", schema: "public", table: "automations" }, (p) => {
         if (p.eventType === "DELETE") setAutomations((list) => list.filter((x) => x.id !== (p.old as Automation).id));
         else setAutomations((list) => [...list.filter((x) => x.id !== p.new.id), p.new].sort((a, b) => a.created_at.localeCompare(b.created_at)));
+      })
+      .on<Scene>("postgres_changes", { event: "*", schema: "public", table: "scenes" }, (p) => {
+        if (p.eventType === "DELETE") setScenes((list) => list.filter((x) => x.id !== (p.old as Scene).id));
+        else setScenes((list) => [...list.filter((x) => x.id !== p.new.id), p.new].sort((a, b) => a.created_at.localeCompare(b.created_at)));
       })
       .on<AgentStatus>("postgres_changes", { event: "*", schema: "public", table: "agent_status" }, (p) => {
         if (p.eventType !== "DELETE") setAgent(p.new);
@@ -261,6 +273,38 @@ export function HomeProvider({ children }: { children: React.ReactNode }) {
     [supabase, toast],
   );
 
+  // Supabase queues the scene's commands; they show up here over realtime.
+  const playScene = useCallback(
+    async (scene: Scene) => {
+      const { error } = await supabase.rpc("play_scene", { scene_id: scene.id });
+      if (error) toast(`Couldn't play ${scene.name}: ${error.message}`);
+    },
+    [supabase, toast],
+  );
+
+  const saveScene = useCallback<Home["saveScene"]>(
+    async (s) => {
+      const row = { name: s.name.trim(), tone: s.tone, shape: s.shape, actions: s.actions };
+      const { data, error } = s.id
+        ? await supabase.from("scenes").update(row).eq("id", s.id).select().single()
+        : await supabase.from("scenes").insert(row).select().single();
+      if (error) return error.message;
+      setScenes((list) => [...list.filter((x) => x.id !== data.id), data].sort((x, y) => x.created_at.localeCompare(y.created_at)));
+      return null;
+    },
+    [supabase],
+  );
+
+  const deleteScene = useCallback(
+    async (id: string) => {
+      const { error } = await supabase.from("scenes").delete().eq("id", id);
+      if (error) return error.message;
+      setScenes((list) => list.filter((x) => x.id !== id));
+      return null;
+    },
+    [supabase],
+  );
+
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
     router.replace("/login");
@@ -277,6 +321,7 @@ export function HomeProvider({ children }: { children: React.ReactNode }) {
     commands,
     events,
     automations,
+    scenes,
     agent,
     agentOnline,
     statuses,
@@ -286,6 +331,9 @@ export function HomeProvider({ children }: { children: React.ReactNode }) {
     saveAutomation,
     deleteAutomation,
     setAutomationEnabled,
+    playScene,
+    saveScene,
+    deleteScene,
     signOut,
   };
 

@@ -47,7 +47,10 @@ const KIND_LABELS: Record<string, string> = {
 };
 
 // For pickers, where a room's lights and its heating zone share a name.
-export const pickerLabel = (d: Device) => `${d.name} · ${KIND_LABELS[d.kind] ?? d.kind}`;
+export function pickerLabel(d: Device) {
+  const kind = KIND_LABELS[d.kind] ?? d.kind;
+  return d.name.toLowerCase() === kind.toLowerCase() ? d.name : `${d.name} · ${kind}`;
+}
 
 export const lowBattery = (s: State) => num(s.battery) !== null && num(s.battery)! <= 15;
 
@@ -78,11 +81,20 @@ export function iconOf(d: Device): IconName {
   }
 }
 
-// State as it will be once the user's pending command lands, so taps feel instant.
+// A finished command keeps showing until the device reports its new state,
+// so values don't flick back to the old ones in between.
+const SETTLE_MS = 10_000;
+
+function stillLanding(c: Command, d: Device) {
+  if (c.status === "pending" || c.status === "running") return true;
+  if (c.status !== "done" || !c.completed_at) return false;
+  const done = Date.parse(c.completed_at);
+  return done >= Date.parse(d.updated_at) && Date.now() - done < SETTLE_MS;
+}
+
+// State as it will be once the user's commands land, so taps feel instant.
 export function displayState(d: Device, commands: Command[]): State {
-  const pending = commands
-    .filter((c) => c.device_id === d.id && (c.status === "pending" || c.status === "running"))
-    .sort((a, b) => a.id - b.id);
+  const pending = commands.filter((c) => c.device_id === d.id && stillLanding(c, d)).sort((a, b) => a.id - b.id);
   let state: State = { ...d.state };
   for (const c of pending) {
     const p = c.params as State;
