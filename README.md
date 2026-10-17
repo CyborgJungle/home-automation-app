@@ -44,33 +44,49 @@ If the login fails with a DNS or 404 error, also add `EVOHOME_HOST=https://tccna
 
 ## 3. Raspberry Pi (IKEA + Eufy)
 
-You need an Ethernet cable (the Pi 2 has no Wi-Fi) and Raspberry Pi OS Lite, flashed with Raspberry Pi Imager. In the Imager settings, set the user to `pi` and enable SSH.
+You need an Ethernet cable (the Pi 2 has no Wi-Fi) and Raspberry Pi OS Lite (32-bit), flashed with Raspberry Pi Imager. In the Imager settings, set the hostname to `home-agent`, the user to `pi`, and enable SSH. Leave Raspberry Pi Connect off.
+
+Node.js goes in the `pi` user's home folder, so installing and updating it needs no `sudo`. Node 22 is the last version with builds for the Pi 2's 32-bit ARM chip.
 
 ```sh
-# Node.js 22 (official build; armv7l for a Pi 2, arm64 for a 64-bit Pi 3/4)
+# On the Pi: Node.js 22 (armv7l for a Pi 2, arm64 for a 64-bit Pi 3/4)
 ARCH=$(uname -m | sed 's/aarch64/arm64/')
-curl -fsSLO https://nodejs.org/dist/v22.23.3/node-v22.23.3-linux-$ARCH.tar.xz
-sudo tar -xJf node-v22.23.3-linux-$ARCH.tar.xz -C /usr/local --strip-components=1
+F=node-v22.23.3-linux-$ARCH.tar.xz
+curl -fsSLO https://nodejs.org/dist/v22.23.3/$F
+curl -fsSL https://nodejs.org/dist/v22.23.3/SHASUMS256.txt | grep " $F$" | sha256sum -c -
+mkdir -p ~/.local/node && tar -xJf $F -C ~/.local/node --strip-components=1 && rm $F
+echo 'export PATH="$HOME/.local/node/bin:$PATH"' >> ~/.profile && . ~/.profile
 node -v
+```
 
-# The code
-sudo apt install -y git
-git clone https://github.com/cyborgjungle/home-automation.git
-cd home-automation/agent
-npm ci --omit=dev
+The repo is private, so copy the agent from your computer instead of cloning it on the Pi:
+
+```sh
+# On your computer, from the repo root
+rsync -a --delete --exclude node_modules --exclude .env --exclude data agent/ pi@home-agent.local:home-automation/agent/
+```
+
+```sh
+# On the Pi
+cd ~/home-automation/agent
+npm ci --omit=dev --omit=optional   # skips the large Eufy library until you need it
 cp .env.example .env
 nano .env
 ```
 
+When you add Eufy later, run `npm ci --omit=dev` once to install its library.
+
 Fill in `.env` one integration at a time and test with **`npm run discover`** after each one. It logs in, lists what it finds and exits, without touching Supabase.
 
-- **IKEA TRÅDFRI:** run `npm run pair-tradfri -- <security code>`. The code is on the label under the gateway. Paste the three lines it prints into `.env`.
+- **IKEA TRÅDFRI:** run `npm run pair-tradfri -- <security code>`. The code is on the label under the gateway. It saves the gateway address and its key to `.env` for you.
 - **Eufy:** ideally a second Eufy account that the doorbell is shared with (Eufy app → device settings → share). That way the agent won't sign your phone out. On the first login Eufy may email a code or ask for a captcha. The agent log tells you which `.env` line to fill in, then run it again.
 
 When `discover` looks right, add the Supabase secret key to `.env` (Project Settings → API Keys → **secret**) and run the agent as a service:
 
 ```sh
 sudo cp home-agent.service /etc/systemd/system/
+sudo mkdir -p /etc/systemd/journald.conf.d && sudo cp journald-size.conf /etc/systemd/journald.conf.d/
+sudo systemctl restart systemd-journald
 sudo systemctl enable --now home-agent
 journalctl -u home-agent -f     # live log
 ```

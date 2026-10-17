@@ -1,11 +1,31 @@
-// One-time pairing with the TRÅDFRI gateway.
+// One-time pairing with the TRÅDFRI gateway. Saves the result to .env.
 // Usage: npm run pair-tradfri -- <security code from the label under the gateway>
 
+import fs from 'node:fs/promises';
+import readline from 'node:readline/promises';
 import tradfri from 'node-tradfri-client';
+
+const ENV_FILE = '.env';
+
+// Sets KEY=value lines in .env, replacing existing ones, so the key never has to be copied by hand.
+async function saveToEnv(values) {
+  let text = await fs.readFile(ENV_FILE, 'utf8').catch(() => '');
+  for (const [key, value] of Object.entries(values)) {
+    const line = `${key}=${value}`;
+    const pattern = new RegExp(`^${key}=.*$`, 'm');
+    text = pattern.test(text) ? text.replace(pattern, line) : `${text.trimEnd()}\n${line}\n`;
+  }
+  await fs.writeFile(ENV_FILE, text, { mode: 0o600 });
+}
 
 const { TradfriClient, discoverGateway } = tradfri;
 
-const securityCode = process.argv[2];
+let securityCode = process.argv[2];
+if (!securityCode) {
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  securityCode = (await rl.question('Security code (on the label under the gateway): ')).trim();
+  rl.close();
+}
 if (!securityCode) {
   console.error('Usage: npm run pair-tradfri -- <security code from the label under the gateway>');
   process.exit(1);
@@ -26,10 +46,8 @@ if (!host) {
 const client = new TradfriClient(host);
 try {
   const { identity, psk } = await client.authenticate(securityCode);
-  console.log('\nPaired. Add these lines to agent/.env:\n');
-  console.log(`TRADFRI_HOST=${host}`);
-  console.log(`TRADFRI_IDENTITY=${identity}`);
-  console.log(`TRADFRI_PSK=${psk}`);
+  await saveToEnv({ TRADFRI_HOST: host, TRADFRI_IDENTITY: identity, TRADFRI_PSK: psk });
+  console.log(`\nPaired with ${host}. Saved TRADFRI_HOST, TRADFRI_IDENTITY and TRADFRI_PSK to ${ENV_FILE}.`);
 } catch (e) {
   console.error('Pairing failed:', e.message, '\nCheck the security code (it is case-sensitive).');
   process.exitCode = 1;

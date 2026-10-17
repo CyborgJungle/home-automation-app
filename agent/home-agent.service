@@ -6,7 +6,8 @@ After=network-online.target
 [Service]
 User=pi
 WorkingDirectory=/home/pi/home-automation/agent
-ExecStart=/usr/local/bin/node --env-file=.env src/index.js
+# Node lives in the pi user's home folder (see README), so no root is needed to update it.
+ExecStart=/home/pi/.local/node/bin/node --env-file=.env src/index.js
 Restart=always
 RestartSec=10
 

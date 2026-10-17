@@ -15,7 +15,9 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",
-    "eufy-security-client": "^3.8.0",
     "node-tradfri-client": "^3.2.0"
+  },
+  "optionalDependencies": {
+    "eufy-security-client": "^3.8.0"
   }
 }

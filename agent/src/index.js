@@ -21,7 +21,7 @@ const supabase = createClient(config.supabaseUrl, config.supabaseSecretKey, {
 });
 
 const hub = createHub(supabase, log.child('hub'), pkg.version);
-const integrations = createIntegrations(config, hub, log);
+const integrations = await createIntegrations(config, hub, log);
 
 if (!integrations.length) {
   log.warn('No integrations configured. Add TRÅDFRI or Eufy settings to .env.');

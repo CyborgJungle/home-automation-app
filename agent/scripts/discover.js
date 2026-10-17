@@ -24,7 +24,7 @@ const hub = {
   heartbeat: async () => {},
 };
 
-const integrations = createIntegrations(config, hub, log);
+const integrations = await createIntegrations(config, hub, log);
 if (!integrations.length) {
   log.error('Nothing configured. Fill in TRÅDFRI and/or Eufy settings in .env first.');
   process.exit(1);
