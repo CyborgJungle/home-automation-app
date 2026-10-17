@@ -29,4 +29,19 @@ export const config = {
         dataDir: path.join(dataDir, 'eufy'),
       }
     : null,
+
+  brel: env.BREL_KEY
+    ? {
+        key: env.BREL_KEY,
+        host: env.BREL_HOST || undefined, // found automatically when empty
+        names: env.BREL_NAMES,
+      }
+    : null,
+
+  bravia: env.BRAVIA_HOST
+    ? {
+        host: env.BRAVIA_HOST,
+        psk: env.BRAVIA_PSK,
+      }
+    : null,
 };

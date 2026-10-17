@@ -19,6 +19,8 @@ const SECTIONS: { integration: Device["integration"]; title: string; onPi: boole
   { integration: "tradfri", title: "IKEA TRÅDFRI", onPi: true },
   { integration: "evohome", title: "Honeywell evohome", onPi: false },
   { integration: "eufy", title: "Eufy", onPi: true },
+  { integration: "brel", title: "Brel Home blinds", onPi: true },
+  { integration: "bravia", title: "Sony TV", onPi: true },
 ];
 
 function time(iso: string | null | undefined) {
@@ -44,6 +46,25 @@ function describe(d: Device) {
         .join(" · ");
     case "heating":
       return `Mode: ${s.mode ?? "unknown"}${s.faults ? ` · ${s.faults} fault(s)` : ""}`;
+    case "blind": {
+      const where =
+        s.position == null
+          ? s.reports_position === false
+            ? "this motor doesn't report its position"
+            : "position unknown"
+          : s.position === 0
+            ? "Open"
+            : s.position === 100
+              ? "Closed"
+              : `${100 - Number(s.position)}% open`;
+      return [where, s.moving ? "moving" : null, s.battery_v != null ? `Battery ${s.battery_v} V` : null]
+        .filter(Boolean)
+        .join(" · ");
+    }
+    case "tv":
+      return s.on
+        ? ["On", s.playing, s.volume != null ? `Volume ${s.volume}${s.muted ? " (muted)" : ""}` : null].filter(Boolean).join(" · ")
+        : "Standby";
     case "doorbell":
       return [s.battery != null ? `Battery ${s.battery}%` : null, `Last ring: ${s.last_ring_at ? new Date(String(s.last_ring_at)).toLocaleString() : "–"}`]
         .filter(Boolean)
@@ -53,13 +74,35 @@ function describe(d: Device) {
   }
 }
 
-// One or two test actions per device, enough to see that it responds.
+// A few test actions per device, enough to see that it responds.
 type TestAction = { label: string; action: string; params: Record<string, unknown> };
 
 function testActions(d: Device): TestAction[] {
   const s = d.state as Record<string, unknown>;
   if (d.kind === "light" || d.kind === "plug" || d.kind === "group") {
     return [{ label: s.on ? "Turn off" : "Turn on", action: "set", params: { on: !s.on } }];
+  }
+  if (d.kind === "blind" && d.integration === "brel") {
+    return [
+      { label: "Open", action: "open", params: {} },
+      { label: "Stop", action: "stop", params: {} },
+      { label: "Close", action: "close", params: {} },
+    ];
+  }
+  if (d.kind === "blind") {
+    return [
+      { label: "Open", action: "set", params: { position: 0 } },
+      { label: "Close", action: "set", params: { position: 100 } },
+    ];
+  }
+  if (d.kind === "tv") {
+    if (!s.on) return [{ label: "Turn on", action: "power", params: { on: true } }];
+    return [
+      { label: "Turn off", action: "power", params: { on: false } },
+      { label: "Vol −", action: "volume", params: { delta: -2 } },
+      { label: "Vol +", action: "volume", params: { delta: 2 } },
+      { label: s.muted ? "Unmute" : "Mute", action: "mute", params: { on: !s.muted } },
+    ];
   }
   if (d.kind === "zone" && typeof s.setpoint === "number") {
     const actions: TestAction[] = [

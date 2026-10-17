@@ -1,6 +1,6 @@
 # home-automation
 
-A first version for testing the connections: can we reach the IKEA lights, the Honeywell heating and the Eufy doorbell, and do they respond?
+A first version for testing the connections: can we reach the IKEA lights, the Honeywell heating, the Brel blinds, the Sony TV and the Eufy doorbell, and do they respond?
 
 ```
  Phone / laptop ──► Vercel (web/)  ◄──►  Supabase (database + realtime)
@@ -9,12 +9,14 @@ A first version for testing the connections: can we reach the IKEA lights, the H
                                                  │
                      Raspberry Pi (agent/) ──────┘  connects out; no port forwarding
                        ├─► IKEA TRÅDFRI gateway   (your home network)
+                       ├─► Brel Home hub          (your home network, UDP)
+                       ├─► Sony BRAVIA TV         (your home network, HTTP)
                        └─► Eufy doorbell          (Eufy cloud + push)
 ```
 
 - `web/` is a Next.js app on Vercel. It has a login (Google, or email and password) and one page listing every device, with one test button per device and a log showing whether each command worked.
 - `supabase/functions/evohome/` talks to the Honeywell cloud. The database runs it every 5 minutes and right away when you press a heating button, so heating works even when the Pi is off.
-- `agent/` runs on the Raspberry Pi for the devices that need your home network or an always-on connection: the IKEA gateway and the Eufy doorbell.
+- `agent/` runs on the Raspberry Pi for the devices that need your home network or an always-on connection: the IKEA gateway, the Brel blinds, the Sony TV and the Eufy doorbell.
 - `supabase/migrations/` holds the database schema (already applied to the `home-automation` Supabase project).
 
 ## 1. Sign-in
@@ -42,7 +44,7 @@ Supabase → **Edge Functions → Secrets**: add `EVOHOME_USERNAME` and `EVOHOME
 
 If the login fails with a DNS or 404 error, also add `EVOHOME_HOST=https://tccna.honeywell.com`. After a wrong password the function waits 30 minutes before trying again, so Honeywell doesn't lock the account.
 
-## 3. Raspberry Pi (IKEA + Eufy)
+## 3. Raspberry Pi (IKEA, Brel, Sony TV, Eufy)
 
 You need an Ethernet cable (the Pi 2 has no Wi-Fi) and Raspberry Pi OS Lite (32-bit), flashed with Raspberry Pi Imager. In the Imager settings, set the hostname to `home-agent`, the user to `pi`, and enable SSH. Leave Raspberry Pi Connect off.
 
@@ -79,6 +81,8 @@ When you add Eufy later, run `npm ci --omit=dev` once to install its library.
 Fill in `.env` one integration at a time and test with **`npm run discover`** after each one. It logs in, lists what it finds and exits, without touching Supabase.
 
 - **IKEA TRÅDFRI:** run `npm run pair-tradfri -- <security code>`. The code is on the label under the gateway. It saves the gateway address and its key to `.env` for you.
+- **Brel Home blinds:** in the Brel Home app, open **Me** and tap 5 times on the version number (iOS) or right of the photo (Android) to show the hub's 16-character key. Put it in `BREL_KEY`. The hub is found automatically. Blinds are called "Blind 1", "Blind 2"…; name them with `BREL_NAMES` (the macs are in `npm run discover`).
+- **Sony TV:** on the TV, go to **Settings → Network & Internet → Home network → IP control**. Set **Authentication** to *Normal and Pre-Shared Key*, choose a **Pre-Shared Key**, and turn on **Remote start** (so the TV can be switched on from standby). Put the TV's IP address in `BRAVIA_HOST` and the key in `BRAVIA_PSK`.
 - **Eufy:** ideally a second Eufy account that the doorbell is shared with (Eufy app → device settings → share). That way the agent won't sign your phone out. On the first login Eufy may email a code or ask for a captcha. The agent log tells you which `.env` line to fill in, then run it again.
 
 When `discover` looks right, add the Supabase secret key to `.env` (Project Settings → API Keys → **secret**) and run the agent as a service:
