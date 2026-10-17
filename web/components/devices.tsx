@@ -8,6 +8,7 @@ import {
   displayState,
   iconOf,
   isActive,
+  isOpen,
   lowBattery,
   modeLabel,
   num,
@@ -29,7 +30,7 @@ export const INTEGRATION_NAMES: Record<Device["integration"], string> = {
 function useDevice(d: Device) {
   const { commands, agentOnline, send } = useHome();
   const state = displayState(d, commands);
-  const busy = commands.some((c) => c.device_id === d.id && (c.status === "pending" || c.status === "running"));
+  const busy = commands.some((c) => c.device_id === d.id && isOpen(c));
   const reachable = d.online && (!ON_PI.includes(d.integration) || agentOnline);
   return { state, busy, reachable, send };
 }

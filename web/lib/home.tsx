@@ -15,12 +15,16 @@ import {
   type IntegrationStatus,
   type Scene,
 } from "@/lib/supabase";
+import { isOpen } from "@/lib/devices";
 
 // The agent writes a heartbeat every 30 s.
 const AGENT_OFFLINE_AFTER_MS = 90_000;
 const COMMAND_HISTORY = 40;
 const EVENT_HISTORY = 40;
 const VERSION_CHECK_MS = 2 * 60_000;
+// While a command is in flight, also ask for its status directly in case a
+// realtime update got lost (e.g. the phone switched from Wi-Fi to 5G).
+const COMMAND_POLL_MS = 2000;
 const BUILD_ID = process.env.NEXT_PUBLIC_BUILD_ID ?? "dev";
 
 type Toast = { id: number; text: string };
@@ -130,6 +134,7 @@ export function HomeProvider({ children }: { children: React.ReactNode }) {
 
     load();
 
+    let subscribedBefore = false;
     const channel = supabase
       .channel("home")
       .on<Device>("postgres_changes", { event: "*", schema: "public", table: "devices" }, (p) => {
@@ -158,23 +163,49 @@ export function HomeProvider({ children }: { children: React.ReactNode }) {
         if (p.eventType === "DELETE") return;
         setStatuses((list) => [...list.filter((x) => x.name !== p.new.name), p.new]);
       })
-      .subscribe();
+      .subscribe((status) => {
+        // Updates sent while the connection was down are lost, so reload
+        // everything whenever it (re)connects after the first time.
+        if (status === "SUBSCRIBED") {
+          if (subscribedBefore) load();
+          subscribedBefore = true;
+        }
+      });
 
     const tick = setInterval(() => setNow(Date.now()), 10_000);
 
-    // iOS keeps home-screen apps frozen in the background: catch up on return.
+    // iOS keeps home-screen apps frozen in the background, and phones hop
+    // between networks: catch up when the app or the network comes back.
     const onVisible = () => {
       if (document.visibilityState === "visible") load();
     };
     document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("online", load);
 
     return () => {
       cancelled = true;
       clearInterval(tick);
       document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("online", load);
       supabase.removeChannel(channel);
     };
   }, [supabase]);
+
+  const openIds = commands
+    .filter(isOpen)
+    .map((c) => c.id)
+    .join(",");
+  useEffect(() => {
+    if (!openIds) return;
+    const ids = openIds.split(",").map(Number);
+    const timer = setInterval(async () => {
+      const { data } = await supabase.from("commands").select("*").in("id", ids);
+      if (data?.length) {
+        setCommands((list) => list.map((c) => data.find((x) => x.id === c.id) ?? c));
+      }
+    }, COMMAND_POLL_MS);
+    return () => clearInterval(timer);
+  }, [openIds, supabase]);
 
   // Tell the user when one of their taps failed.
   useEffect(() => {
@@ -277,7 +308,23 @@ export function HomeProvider({ children }: { children: React.ReactNode }) {
   const playScene = useCallback(
     async (scene: Scene) => {
       const { error } = await supabase.rpc("play_scene", { scene_id: scene.id });
-      if (error) toast(`Couldn't play ${scene.name}: ${error.message}`);
+      if (error) {
+        toast(`Couldn't play ${scene.name}: ${error.message}`);
+        return;
+      }
+      const { data } = await supabase
+        .from("commands")
+        .select("*")
+        .eq("source", `scene:${scene.id}`)
+        .order("id", { ascending: false })
+        .limit(scene.actions.length || 1);
+      if (data?.length) {
+        setCommands((list) => {
+          let next = list;
+          for (const c of data) next = upsertById(next, c);
+          return next.sort((a, b) => b.id - a.id).slice(0, COMMAND_HISTORY);
+        });
+      }
     },
     [supabase, toast],
   );

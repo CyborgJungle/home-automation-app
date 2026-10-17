@@ -75,12 +75,18 @@ export function iconOf(d: Device): IconName {
   }
 }
 
+// Commands still waiting for the Pi. The agent drops anything older than two
+// minutes, so an older one that never got an update isn't really in flight.
+const OPEN_MS = 2 * 60_000;
+export const isOpen = (c: Command) =>
+  (c.status === "pending" || c.status === "running") && Date.now() - Date.parse(c.created_at) < OPEN_MS;
+
 // A finished command keeps showing until the device reports its new state,
 // so values don't flick back to the old ones in between.
 const SETTLE_MS = 10_000;
 
 function stillLanding(c: Command, d: Device) {
-  if (c.status === "pending" || c.status === "running") return true;
+  if (isOpen(c)) return true;
   if (c.status !== "done" || !c.completed_at) return false;
   const done = Date.parse(c.completed_at);
   return done >= Date.parse(d.updated_at) && Date.now() - done < SETTLE_MS;

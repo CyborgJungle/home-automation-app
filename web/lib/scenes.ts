@@ -1,6 +1,6 @@
 // Whether a scene is "on": every device in it looks the way the scene sets it.
 
-import { displayState, num } from "@/lib/devices";
+import { displayState, isOpen, num } from "@/lib/devices";
 import type { Command, Device, SceneAction, Scene } from "@/lib/supabase";
 
 type State = Record<string, unknown>;
@@ -53,4 +53,4 @@ export function sceneIsOn(scene: Scene, devices: Device[], commands: Command[]) 
 }
 
 export const scenePlaying = (scene: Scene, commands: Command[]) =>
-  commands.some((c) => c.source === `scene:${scene.id}` && (c.status === "pending" || c.status === "running"));
+  commands.some((c) => c.source === `scene:${scene.id}` && isOpen(c));
