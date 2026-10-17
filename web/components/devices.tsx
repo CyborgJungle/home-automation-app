@@ -8,6 +8,7 @@ import {
   describe,
   displayState,
   iconOf,
+  floorOf,
   isActive,
   isOpen,
   lowBattery,
@@ -146,7 +147,20 @@ function DeviceControls({ device: d }: { device: Device }) {
         </>
       )}
 
-      {d.kind === "zone" && (
+      {d.kind === "zone" && floorOf(s) && <FloorControls state={s} />}
+
+      {d.kind === "zone" && Boolean(s.floor_helper) && (
+        <div className="note-card">
+          <strong>Boiler switch for the floor heating</strong>
+          <p className="muted small">
+            The living-room thermostat sets this zone to 30° to make the boiler fire and to 5° to stop it. Its own
+            temperature is ignored. Its radiator should be closed underneath, so this room doesn&apos;t heat.
+          </p>
+          <ZoneInfo state={s} />
+        </div>
+      )}
+
+      {d.kind === "zone" && !floorOf(s) && !s.floor_helper && (
         <>
           <div className="stat-row">
             <div className="stat">
@@ -451,5 +465,62 @@ function ZoneInfo({ state: s }: { state: Record<string, unknown> }) {
         </div>
       ))}
     </div>
+  );
+}
+
+// The living-room floor-heating thermostat (Supabase switches the helper zone).
+function FloorControls({ state: s }: { state: Record<string, unknown> }) {
+  const { floor, setFloor, devices, send } = useHome();
+  const f = floorOf(s);
+  if (!floor || !f) return null;
+  const system = devices.find((d) => d.kind === "heating" && d.integration === "evohome");
+  const systemOff = system?.state.mode === "HeatingOff";
+  const helper = devices.find((d) => d.id === floor.helper_zone);
+  const step = (delta: number) => setFloor({ target: Math.min(25, Math.max(15, Number(floor.target) + delta)) });
+
+  return (
+    <>
+      <div className="row-card">
+        <span className="grow">
+          Floor heating
+          <span className="muted small sub">
+            {!floor.enabled ? "Off" : floor.heating ? "Heating: the boiler is on for the floor" : "Idle: at temperature"}
+          </span>
+        </span>
+        <Switch on={floor.enabled} label="Floor heating" onChange={(enabled) => setFloor({ enabled })} />
+      </div>
+      <div className="stat-row">
+        <div className="stat">
+          <span className="muted">Now</span>
+          <strong>{num(s.temperature)?.toFixed(1) ?? "–"}°</strong>
+        </div>
+        <div className="stat">
+          <span className="muted">Target</span>
+          <div className="stepper">
+            <button className="round" aria-label="Lower" onClick={() => step(-0.5)}>
+              <Icon name="minus" size={18} />
+            </button>
+            <strong>{Number(floor.target).toFixed(1)}°</strong>
+            <button className="round" aria-label="Raise" onClick={() => step(0.5)}>
+              <Icon name="plus" size={18} />
+            </button>
+          </div>
+        </div>
+      </div>
+      {systemOff && system && (
+        <div className="note-card warn">
+          <strong>The heating system is switched Off</strong>
+          <p className="muted small">Nothing can fire the boiler until it&apos;s on Schedule.</p>
+          <button className="pill small" onClick={() => send(system, "set_mode", { mode: "Auto" })}>
+            Switch to Schedule
+          </button>
+        </div>
+      )}
+      <p className="muted small">
+        Heats when the living room is below {Number(floor.target).toFixed(1)}° and stops at{" "}
+        {(Number(floor.target) + 0.5).toFixed(1)}°, by switching {helper?.name ?? "the helper zone"} between 30° and 5°.
+        Floor heating is slow: expect half an hour or more before you feel it.
+      </p>
+    </>
   );
 }

@@ -108,6 +108,8 @@ export function displayState(d: Device, commands: Command[]): State {
     else if (c.action === "play" || c.action === "favorite") state.playing = true;
     else if (c.action === "pause") state.playing = false;
     else if (c.action === "volume" && p.volume != null) state.volume = p.volume;
+    else if (c.action === "floor_target") state.floor = { ...floorOf(state), enabled: true, target: p.target };
+    else if (c.action === "floor_off") state.floor = { ...floorOf(state), enabled: false };
     else if (c.action === "set_temperature") state.setpoint = p.setpoint;
     else if (c.action === "set_mode") state.mode = p.mode;
     else if (c.action === "open") state.position = 0;
@@ -115,6 +117,10 @@ export function displayState(d: Device, commands: Command[]): State {
   }
   return state;
 }
+
+// The floor-heating thermostat riding on the living-room zone (see lib/home.tsx).
+export type FloorState = { enabled: boolean; target: number; heating: boolean };
+export const floorOf = (s: State) => (s.floor && typeof s.floor === "object" ? (s.floor as FloorState) : null);
 
 // "Active" tiles are filled with their colour.
 export function isActive(d: Device, s: State) {
@@ -126,8 +132,12 @@ export function isActive(d: Device, s: State) {
       return Boolean(s.on);
     case "blind":
       return num(s.position) !== null && num(s.position)! < 100;
-    case "zone":
+    case "zone": {
+      const floor = floorOf(s);
+      if (floor) return floor.enabled && floor.heating;
+      if (s.floor_helper) return false;
       return num(s.temperature) !== null && num(s.setpoint) !== null && num(s.temperature)! < num(s.setpoint)!;
+    }
     case "heating":
       return s.mode !== "HeatingOff";
     case "speaker":
@@ -158,8 +168,12 @@ export function describe(d: Device, s: State): string {
     }
     case "plug":
       return s.on ? "On" : "Off";
-    case "zone":
+    case "zone": {
+      const floor = floorOf(s);
+      if (floor) return floor.enabled ? `Floor ${floor.heating ? "heating" : "idle"} · ${floor.target}°` : "Floor heating off";
+      if (s.floor_helper) return "Boiler switch for the floor";
       return num(s.setpoint) !== null ? `Set to ${s.setpoint}°` : "";
+    }
     case "heating":
       return `Mode: ${modeLabel(s.mode)}`;
     case "blind": {
@@ -297,6 +311,20 @@ export function actionOptions(d: Device): ActionOption[] {
       }
       return [fixed("open", "Open", "set", { position: 0 }), fixed("close", "Close", "set", { position: 100 })];
     case "zone":
+      if (floorOf(d.state)) {
+        return [
+          {
+            id: "floor_target",
+            label: "Floor heating to",
+            action: "floor_target",
+            params: (n) => ({ target: n }),
+            number: { min: 15, max: 25, step: 0.5, unit: "°C", default: 20 },
+          },
+          fixed("floor_off", "Floor heating off", "floor_off"),
+        ];
+      }
+      // The helper zone belongs to the floor-heating thermostat; don't let scenes fight it.
+      if (d.state.floor_helper) return [];
       return [
         {
           id: "temp_1h",

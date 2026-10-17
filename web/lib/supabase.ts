@@ -96,3 +96,13 @@ export type Scene = {
   created_at: string;
   updated_at: string;
 };
+
+// The living-room floor-heating thermostat (see migrations/…_floor_heating.sql).
+export type FloorHeating = {
+  enabled: boolean;
+  target: number;
+  sensor_zone: string;
+  helper_zone: string;
+  heating: boolean;
+  last_switch_at: string | null;
+};

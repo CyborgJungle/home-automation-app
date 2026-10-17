@@ -11,6 +11,7 @@ import {
   type Automation,
   type Command,
   type Device,
+  type FloorHeating,
   type HomeEvent,
   type IntegrationStatus,
   type Scene,
@@ -35,6 +36,8 @@ export type Home = {
   userName: string | null;
   userEmail: string | null;
   devices: Device[];
+  floor: FloorHeating | null;
+  setFloor: (patch: Partial<Pick<FloorHeating, "enabled" | "target">>) => Promise<void>;
   commands: Command[];
   events: HomeEvent[];
   automations: Automation[];
@@ -73,7 +76,8 @@ export function HomeProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
   const [member, setMember] = useState<boolean | null>(null);
   const [user, setUser] = useState<{ name: string | null; email: string | null }>({ name: null, email: null });
-  const [devices, setDevices] = useState<Device[]>([]);
+  const [rawDevices, setDevices] = useState<Device[]>([]);
+  const [floor, setFloorState] = useState<FloorHeating | null>(null);
   const [commands, setCommands] = useState<Command[]>([]);
   const [events, setEvents] = useState<HomeEvent[]>([]);
   const [automations, setAutomations] = useState<Automation[]>([]);
@@ -84,6 +88,22 @@ export function HomeProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [updateReady, setUpdateReady] = useState(false);
   const mine = useRef(new Set<number>()); // commands sent from this screen
+
+  // The living-room zone carries the floor-heating thermostat in its state, and
+  // the helper zone is marked, so tiles, sheets and the builders can show them.
+  const devices = useMemo(
+    () =>
+      rawDevices.map((d) => {
+        if (!floor) return d;
+        if (d.id === floor.sensor_zone) {
+          return { ...d, state: { ...d.state, floor: { enabled: floor.enabled, target: Number(floor.target), heating: floor.heating } } };
+        }
+        if (d.id === floor.helper_zone) return { ...d, state: { ...d.state, floor_helper: true } };
+        return d;
+      }),
+    [rawDevices, floor],
+  );
+
 
   const toast = useCallback((text: string) => {
     const id = Date.now() + Math.random();
@@ -112,7 +132,7 @@ export function HomeProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      const [d, c, e, a, s, au, sc] = await Promise.all([
+      const [d, c, e, a, s, au, sc, fh] = await Promise.all([
         supabase.from("devices").select("*"),
         supabase.from("commands").select("*").order("id", { ascending: false }).limit(COMMAND_HISTORY),
         supabase.from("events").select("*").order("id", { ascending: false }).limit(EVENT_HISTORY),
@@ -120,6 +140,7 @@ export function HomeProvider({ children }: { children: React.ReactNode }) {
         supabase.from("integration_status").select("*"),
         supabase.from("automations").select("*").order("created_at"),
         supabase.from("scenes").select("*").order("created_at"),
+        supabase.from("floor_heating").select("*").maybeSingle(),
       ]);
       if (cancelled) return;
       setDevices(d.data ?? []);
@@ -129,6 +150,7 @@ export function HomeProvider({ children }: { children: React.ReactNode }) {
       setStatuses(s.data ?? []);
       setAutomations(au.data ?? []);
       setScenes(sc.data ?? []);
+      setFloorState(fh.data);
       setReady(true);
     }
 
@@ -151,6 +173,9 @@ export function HomeProvider({ children }: { children: React.ReactNode }) {
       .on<Automation>("postgres_changes", { event: "*", schema: "public", table: "automations" }, (p) => {
         if (p.eventType === "DELETE") setAutomations((list) => list.filter((x) => x.id !== (p.old as Automation).id));
         else setAutomations((list) => [...list.filter((x) => x.id !== p.new.id), p.new].sort((a, b) => a.created_at.localeCompare(b.created_at)));
+      })
+      .on<FloorHeating>("postgres_changes", { event: "UPDATE", schema: "public", table: "floor_heating" }, (p) => {
+        setFloorState(p.new);
       })
       .on<Scene>("postgres_changes", { event: "*", schema: "public", table: "scenes" }, (p) => {
         if (p.eventType === "DELETE") setScenes((list) => list.filter((x) => x.id !== (p.old as Scene).id));
@@ -357,6 +382,16 @@ export function HomeProvider({ children }: { children: React.ReactNode }) {
     router.replace("/login");
   }, [supabase, router]);
 
+  const setFloor = useCallback<Home["setFloor"]>(
+    async (patch) => {
+      setFloorState((f) => (f ? { ...f, ...patch } : f));
+      const { data, error } = await supabase.from("floor_heating").update(patch).eq("id", 1).select().single();
+      if (error) toast(`Couldn't change the floor heating: ${error.message}`);
+      else setFloorState(data);
+    },
+    [supabase, toast],
+  );
+
   const agentOnline = agent?.last_seen != null && now - Date.parse(agent.last_seen) < AGENT_OFFLINE_AFTER_MS;
 
   const value: Home = {
@@ -365,6 +400,8 @@ export function HomeProvider({ children }: { children: React.ReactNode }) {
     userName: user.name,
     userEmail: user.email,
     devices,
+    floor,
+    setFloor,
     commands,
     events,
     automations,

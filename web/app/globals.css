@@ -870,6 +870,23 @@ button.chip.selected {
   font-size: 28px;
 }
 
+.note-card {
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+  border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--sheet-tone, var(--sand)) 35%, #fff);
+  border: 1.5px solid var(--line);
+}
+
+.note-card.warn {
+  background: #fde1da;
+}
+
+.note-card .pill {
+  justify-self: start;
+}
+
 .now-playing {
   display: grid;
   gap: 3px;

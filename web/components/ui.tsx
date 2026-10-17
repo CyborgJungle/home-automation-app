@@ -57,7 +57,8 @@ export function Sheet({
     };
   }, [open]);
 
-  if (!open) return null;
+  // Nothing to portal into during server rendering.
+  if (!open || typeof document === "undefined") return null;
   // Rendered at the end of <body>, so a sheet opened from inside another
   // sheet (like a picker in an editor) always sits on top of it.
   return createPortal(
