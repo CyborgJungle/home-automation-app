@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Home · Your home, in harmony</title>
+  <style>
+    :root { color-scheme: light; --ink:#20382c; --muted:#758077; --line:#e3e8df; --green:#315d45; --paper:#f7f8f3; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--paper); color:var(--ink); font:15px/1.5 system-ui,sans-serif; }
+    button { font:inherit; cursor:pointer; }
+    button:focus-visible { outline:3px solid #82aa83; outline-offset:3px; }
+    button:disabled { opacity:.55; cursor:wait; }
+    .shell { max-width:1440px; margin:auto; padding:0 48px 60px; }
+    header { display:flex; align-items:center; justify-content:space-between; padding:28px 0; border-bottom:1px solid var(--line); gap:20px; }
+    .brand { display:flex; align-items:center; gap:10px; font-weight:650; font-size:23px; letter-spacing:-1px; }
+    .brand svg { width:28px; height:28px; }
+    .private { color:var(--muted); font-size:12px; letter-spacing:.04em; }
+    .intro { display:flex; align-items:flex-end; justify-content:space-between; gap:24px; padding:50px 0 30px; }
+    .eyebrow { font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--muted); font-weight:650; }
+    h1 { font-size:clamp(30px,4vw,44px); font-weight:500; letter-spacing:-1.8px; line-height:1.15; margin:10px 0 12px; }
+    p { margin:0; color:var(--muted); }
+    .modes { display:flex; padding:4px; border:1px solid var(--line); border-radius:10px; gap:4px; background:#fff; flex-shrink:0; }
+    .modes button { border:0; background:transparent; color:var(--muted); border-radius:7px; padding:9px 17px; font-size:13px; }
+    .modes button[aria-pressed="true"] { background:var(--green); color:white; }
+    .banner { border:1px solid #dce4d5; background:#edf2e7; padding:13px 18px; border-radius:10px; color:#58684d; margin-bottom:24px; font-size:13px; }
+    .banner.error { background:#fff2e8; border-color:#eed9c5; color:#814d2a; }
+    .metrics { display:grid; grid-template-columns:repeat(3,1fr); gap:18px; margin-bottom:36px; }
+    .metric { border:1px solid var(--line); padding:23px 25px; background:#fff; border-radius:13px; }
+    .metric span { color:var(--muted); font-size:13px; }
+    .metric strong { display:block; font-size:32px; letter-spacing:-1px; font-weight:500; margin-top:10px; }
+    .section-top { display:flex; align-items:center; justify-content:space-between; gap:20px; margin-bottom:18px; }
+    h2 { font-size:21px; font-weight:550; letter-spacing:-.5px; margin:0; }
+    .refresh { border:1px solid var(--line); background:transparent; border-radius:8px; padding:8px 13px; font-size:12px; color:var(--ink); }
+    .zone-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:18px; }
+    .zone { background:white; border:1px solid var(--line); border-radius:13px; padding:24px; min-width:0; }
+    .zone-top { display:flex; justify-content:space-between; gap:14px; align-items:flex-start; }
+    .zone h3 { font-size:17px; font-weight:550; margin:0 0 3px; overflow-wrap:anywhere; }
+    .zone .place { font-size:11px; color:var(--muted); }
+    .zone .symbol { background:#f2f4ec; color:#8a9e73; width:35px; height:35px; border-radius:9px; display:grid; place-items:center; flex-shrink:0; }
+    .temperature { font-size:43px; font-weight:450; letter-spacing:-2px; margin:27px 0; }
+    .temperature small { font-size:20px; letter-spacing:0; color:var(--muted); margin-left:4px; }
+    .temperature.offline { font-size:24px; letter-spacing:-.5px; color:var(--muted); padding:14px 0; }
+    .zone-bottom { border-top:1px solid var(--line); padding-top:15px; display:flex; justify-content:space-between; gap:8px; font-size:12px; color:var(--muted); }
+    .target { color:var(--ink); white-space:nowrap; }
+    .empty { padding:45px 24px; border:1px dashed #ccd5c6; border-radius:12px; text-align:center; color:var(--muted); grid-column:1/-1; }
+    .below { display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-top:36px; }
+    .panel { border:1px solid var(--line); background:#fff; border-radius:13px; padding:26px; }
+    .panel h2 { font-size:17px; margin:12px 0 9px; }
+    .panel p { font-size:13px; max-width:430px; }
+    .integration { display:flex; align-items:center; justify-content:space-between; margin-top:20px; padding-top:18px; border-top:1px solid var(--line); gap:15px; font-size:13px; }
+    .tag { background:#f0f3ea; border-radius:5px; padding:4px 8px; color:#637450; font-size:11px; white-space:nowrap; }
+    footer { display:flex; justify-content:space-between; gap:20px; margin-top:35px; color:var(--muted); font-size:11px; }
+    [hidden] { display:none !important; }
+    @media(max-width:850px) { .zone-grid { grid-template-columns:repeat(2,1fr); } .shell { padding:0 24px 35px; } .intro { align-items:flex-start; flex-direction:column; padding-top:32px; } }
+    @media(max-width:540px) { .metrics { gap:8px; } .metric { padding:16px 12px; } .metric strong { font-size:26px; } .metric span { font-size:11px; } .zone-grid,.below { grid-template-columns:1fr; } .private { max-width:120px; text-align:right; } footer { flex-direction:column; gap:5px; } }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <div class="brand"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 10 12 3l9 7v10a1 1 0 0 1-1 1h-6v-7h-4v7H4a1 1 0 0 1-1-1Z"/></svg>home.</div>
+      <div class="private">YOUR PRIVATE HOME DASHBOARD</div>
+    </header>
+    <main>
+      <div class="intro">
+        <div><div class="eyebrow">A little more connected</div><h1>Your home, in harmony.</h1><p>A clear view of your home's comfort, one room at a time.</p></div>
+        <div class="modes" aria-label="Data source"><button id="demo" type="button" aria-pressed="true">Demo home</button><button id="live" type="button" aria-pressed="false">My Evohome</button></div>
+      </div>
+      <div class="banner" id="notice" role="status">Demo home · Sample readings. Select My Evohome to check your connection.</div>
+      <section class="metrics" aria-label="Home summary">
+        <div class="metric"><span>Heating zones</span><strong id="zone-count">—</strong></div>
+        <div class="metric"><span>Average temperature</span><strong id="average">—</strong></div>
+        <div class="metric"><span>Heating systems</span><strong id="system-count">—</strong></div>
+      </section>
+      <section aria-labelledby="rooms-heading">
+        <div class="section-top"><h2 id="rooms-heading">Room by room</h2><button class="refresh" id="refresh" type="button">↻ Refresh readings</button></div>
+        <div class="zone-grid" id="zones" aria-live="polite"></div>
+      </section>
+      <div class="below">
+        <section class="panel"><div class="eyebrow">Connected devices</div><h2>It starts with a comfortable home.</h2><p>Evohome brings your room temperatures together. More devices can join as your home grows.</p><div class="integration"><span>Honeywell Evohome</span><span class="tag" id="connection-state">Demo</span></div></section>
+        <section class="panel"><div class="eyebrow">Looking ahead</div><h2>Small routines. Everyday comfort.</h2><p>Scheduled heating, arrival routines, and more devices can follow once your connection is working.</p><div class="integration"><span>Automations</span><span class="tag">Not enabled yet</span></div></section>
+      </div>
+    </main>
+    <footer><span>Home automation · Made for your home</span><span id="observed">No readings loaded</span></footer>
+  </div>
+  <script>
+    const el = id => document.getElementById(id);
+    let demo = true;
+    let loading = false;
+    function node(tag, className, value) {
+      const item = document.createElement(tag);
+      if (className) item.className = className;
+      if (value !== undefined) item.textContent = value;
+      return item;
+    }
+    const modeNames = {FollowSchedule:'Following schedule',TemporaryOverride:'Temporary override',PermanentOverride:'Permanent override'};
+    function show(data) {
+      const allZones = [];
+      let systems = 0;
+      el('zones').replaceChildren();
+      for (const location of data.locations) {
+        for (const system of location.systems) {
+          systems++;
+          for (const zone of system.zones) {
+            allZones.push(zone);
+            const card = node('article', 'zone');
+            const top = node('div', 'zone-top');
+            const name = node('div');
+            name.append(node('h3', '', zone.name), node('div', 'place', `${location.name} · ${system.mode}`));
+            const symbol = node('span', 'symbol', '°');
+            symbol.setAttribute('aria-hidden', 'true');
+            top.append(name, symbol);
+            const available = zone.temperature_c !== null;
+            const temp = node('div', available ? 'temperature' : 'temperature offline', available ? zone.temperature_c.toFixed(1) : 'Unavailable');
+            if (available) temp.append(node('small', '', '°C'));
+            const bottom = node('div', 'zone-bottom');
+            bottom.append(node('span', '', modeNames[zone.mode] || zone.mode), node('span', 'target', `Target ${zone.target_c.toFixed(1)}°`));
+            card.append(top, temp, bottom);
+            el('zones').append(card);
+          }
+        }
+      }
+      const readings = allZones.map(z => z.temperature_c).filter(t => t !== null);
+      el('zone-count').textContent = allZones.length;
+      el('system-count').textContent = systems;
+      el('average').textContent = readings.length ? `${(readings.reduce((a,b) => a+b,0)/readings.length).toFixed(1)}°` : '—';
+      el('observed').textContent = `Observed ${new Date(data.observed_at).toLocaleString()}`;
+      if (!allZones.length) el('zones').append(node('div', 'empty', 'No heating zones found.'));
+    }
+    async function load() {
+      if (loading) return;
+      loading = true;
+      for (const id of ['demo','live','refresh']) el(id).disabled = true;
+      el('demo').setAttribute('aria-pressed', String(demo));
+      el('live').setAttribute('aria-pressed', String(!demo));
+      el('notice').className = 'banner';
+      el('notice').textContent = demo ? 'Loading sample readings…' : 'Checking your Evohome connection…';
+      try {
+        const response = await fetch(`/api/evohome/status?demo=${demo}`, {cache:'no-store', credentials:'same-origin'});
+        const data = await response.json();
+        if (!response.ok) throw new Error(typeof data.detail === 'string' ? data.detail : 'Unable to load your home.');
+        show(data);
+        el('notice').textContent = demo ? 'Demo home · These are sample readings, not your heating system.' : 'Connected to Evohome · Readings refresh at most once every five minutes per server instance.';
+        el('connection-state').textContent = demo ? 'Demo' : 'Connected';
+      } catch (error) {
+        el('notice').className = 'banner error';
+        el('notice').textContent = error.message || 'Unable to connect. Please try again.';
+        el('zones').replaceChildren(node('div', 'empty', demo ? 'Sample readings could not be loaded.' : 'Your room readings will appear here once Evohome is connected.'));
+        for (const id of ['zone-count','average','system-count']) el(id).textContent = '—';
+        el('connection-state').textContent = 'Not connected';
+        el('observed').textContent = 'No current readings';
+      } finally {
+        loading = false;
+        for (const id of ['demo','live','refresh']) el(id).disabled = false;
+      }
+    }
+    el('demo').addEventListener('click', () => { demo = true; load(); });
+    el('live').addEventListener('click', () => { demo = false; load(); });
+    el('refresh').addEventListener('click', load);
+    load();
+  </script>
+</body>
+</html>

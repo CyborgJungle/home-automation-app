@@ -1,0 +1,1 @@
+"""Personal home automation integrations."""
