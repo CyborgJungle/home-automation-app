@@ -43,7 +43,7 @@ export function DeviceTile({ device, onOpen }: { device: Device; onOpen: () => v
 
   return (
     <div
-      className={["tile", `tone-${toneOf(device)}`, active && "active", !reachable && "off", (device.kind === "zone" || device.kind === "heating") && device.kind]
+      className={["tile", `tone-${toneOf(device)}`, active && "active", !reachable && "off"]
         .filter(Boolean)
         .join(" ")}
       role="button"
@@ -58,6 +58,13 @@ export function DeviceTile({ device, onOpen }: { device: Device; onOpen: () => v
         <span className="tile-icon">
           <Icon name={iconOf(device)} size={20} />
         </span>
+        {device.kind === "zone" && (
+          <span className="tile-value">
+            {temp !== null ? temp.toFixed(1) : "–"}
+            <small>°</small>
+          </span>
+        )}
+        {device.kind === "heating" && <span className="tile-value">{modeLabel(state.mode)}</span>}
         {busy && <span className="spinner" aria-label="Sending" />}
         <button
           className="tile-more"
@@ -70,13 +77,6 @@ export function DeviceTile({ device, onOpen }: { device: Device; onOpen: () => v
           <Icon name="chevron" size={16} stroke={2.6} />
         </button>
       </div>
-      {device.kind === "zone" && (
-        <div className="tile-big">
-          {temp !== null ? temp.toFixed(1) : "–"}
-          <small>°C</small>
-        </div>
-      )}
-      {device.kind === "heating" && <div className="tile-big">{modeLabel(state.mode)}</div>}
       <div className="tile-name">{device.name}</div>
       <div className={lowBattery(state) ? "tile-state warn" : "tile-state"}>
         {reachable ? describe(device, state) : offlineLabel(device)}

@@ -157,17 +157,32 @@ export function Icon({ name, size = 22, stroke = 2.2 }: { name: IconKey; size?: 
   );
 }
 
-// The house mascot: a soft house shape with two eyes that look around.
-export function Blob({ size = 64, tone = "var(--pink)", look = "right" }: { size?: number; tone?: string; look?: "left" | "right" | "up" }) {
+// The house mascot: a soft house shape with two eyes. With `idle`, the eyes
+// slowly look around and blink now and then (see .blob-eyes in globals.css).
+export function Blob({
+  size = 64,
+  tone = "var(--pink)",
+  look = "right",
+  idle = false,
+}: {
+  size?: number;
+  tone?: string;
+  look?: "left" | "right" | "up";
+  idle?: boolean;
+}) {
   const dx = look === "left" ? -2.2 : look === "right" ? 2.2 : 0;
   const dy = look === "up" ? -2.2 : 0.6;
   return (
     <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden="true">
       <path d="M8 30.5 30 9.6a3 3 0 0 1 4 0l22 20.9c1.3 1.2 2 2.9 2 4.7V52a6 6 0 0 1-6 6H12a6 6 0 0 1-6-6V35.2c0-1.8.7-3.5 2-4.7z" fill={tone} />
-      <circle cx="24" cy="38" r="7" fill="#fff" />
-      <circle cx="40" cy="38" r="7" fill="#fff" />
-      <circle cx={24 + dx} cy={38 + dy} r="3.6" fill="var(--ink)" />
-      <circle cx={40 + dx} cy={38 + dy} r="3.6" fill="var(--ink)" />
+      <g className={idle ? "blob-eyes idle" : "blob-eyes"}>
+        <circle cx="24" cy="38" r="7" fill="#fff" />
+        <circle cx="40" cy="38" r="7" fill="#fff" />
+        <g className="blob-pupils">
+          <circle cx={24 + dx} cy={38 + dy} r="3.6" fill="var(--ink)" />
+          <circle cx={40 + dx} cy={38 + dy} r="3.6" fill="var(--ink)" />
+        </g>
+      </g>
     </svg>
   );
 }
