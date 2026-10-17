@@ -1,0 +1,11 @@
+{
+  "name": "home-database-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test all-off-scene.test.js"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.3.14"
+  }
+}

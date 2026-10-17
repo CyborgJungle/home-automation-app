@@ -17,11 +17,23 @@ A first version for testing the connections: can we reach the IKEA lights, the H
 
 - `web/` is a Next.js app on Vercel, made to be added to an iPhone home screen (Safari → Share → **Add to Home Screen**). It has four tabs: **Home** (every device, grouped by type; tap a tile to switch it, tap › for more controls), **Scenes** (tap a card to set several devices at once; the pencil edits it), **Automations** (simple when-this-then-that rules) and **Activity** (Pi and connection health, plus a timeline). After a new deploy the app reloads itself the next time you switch back to it.
 - **Scenes** (`supabase/migrations/20261017000700_scenes.sql`) are saved sets of device actions. The app plays one with the `play_scene` function, and automations can play scenes too.
+- **All off** (`supabase/migrations/20261017001200_all_off_scene.sql`) creates a scene for all discovered individual IKEA lights and plugs, switches off the floor-heating thermostat, and puts Evohome systems in **Heating Off**. It leaves doorbells, sensors, blinds and media devices alone. Applying the migration only saves the scene; it does not run it. Review the saved plug actions before playing so anything powering the Pi, bridges or security equipment stays on. Existing scenes named “All off” are preserved; newly added devices can be included with the scene editor.
 - **Keeping Supabase awake:** free projects pause after a week without user activity. The Pi's heartbeat normally covers that; as a backup, Vercel Cron calls `/api/keepalive` every day (`web/vercel.json`), which writes a timestamp through `public.keepalive()`.
 - **Automations run in Supabase** (`supabase/migrations/20261017000600_automation_engine.sql`): database triggers react to device changes and doorbell rings, and pg_cron checks time rules every minute (Amsterdam time). Their actions become ordinary commands, so they work with the app closed.
 - `supabase/functions/evohome/` talks to the Honeywell cloud. The database runs it every 5 minutes and right away when you press a heating button, so heating works even when the Pi is off.
 - `agent/` runs on the Raspberry Pi for the devices that need your home network or an always-on connection: the IKEA gateway, the Brel blinds, the Sony TV and the Eufy doorbell.
-- `supabase/migrations/` holds the database schema (already applied to the `home-automation` Supabase project).
+- `supabase/migrations/` holds the database schema for the `home-automation` Supabase project. New migrations must be applied to the project before their changes are available.
+
+### Add the All off scene to an existing installation
+
+In the project's [Supabase SQL editor](https://supabase.com/dashboard/project/YOUR-PROJECT-REF/sql/new), run the contents of
+[`20261017001200_all_off_scene.sql`](supabase/migrations/20261017001200_all_off_scene.sql).
+The new **All off** card then appears in the app's **Scenes** tab through the
+existing realtime connection; no website redeploy is required. Tap its pencil to
+review the devices. Tap the card itself only when you want to switch them off.
+If no eligible devices have been discovered, the migration creates no empty
+scene; sync devices and run it again. An existing scene with that name is left
+unchanged.
 
 ## 1. Sign-in
 
@@ -119,4 +131,12 @@ Open the Vercel URL and sign in.
 ```sh
 cd web && cp .env.example .env.local && npm install && npm run dev
 node --experimental-strip-types --test supabase/functions/evohome/honeywell.test.ts
+```
+
+Database scene tests use an isolated PostgreSQL instance in PGlite and never
+connect to the live Supabase project:
+
+```sh
+npm ci --prefix supabase/tests
+npm test --prefix supabase/tests
 ```
