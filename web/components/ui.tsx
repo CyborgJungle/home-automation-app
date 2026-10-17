@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Icon, type IconKey } from "@/components/icons";
+import { ON_PI } from "@/lib/devices";
 import { useHome } from "@/lib/home";
 
 const TABS: { href: string; label: string; icon: IconKey }[] = [
@@ -13,6 +14,20 @@ const TABS: { href: string; label: string; icon: IconKey }[] = [
   { href: "/automations", label: "Automations", icon: "bolt" },
   { href: "/activity", label: "Activity", icon: "pulse" },
 ];
+
+export function PiStatus() {
+  const { agent, agentOnline, devices } = useHome();
+  if (!agent && !devices.some((d) => ON_PI.includes(d.integration))) return null;
+
+  return (
+    <div className="app-status">
+      <span className={`pi-status${agentOnline ? "" : " offline"}`} role="status" aria-label={`Raspberry Pi ${agentOnline ? "online" : "offline"}`}>
+        <span className="pi-status-dot" aria-hidden="true" />
+        Pi {agentOnline ? "online" : "offline"}
+      </span>
+    </div>
+  );
+}
 
 export function TabBar() {
   const path = usePathname();
