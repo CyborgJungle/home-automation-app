@@ -15,6 +15,8 @@ import {
   type HomeEvent,
   type IntegrationStatus,
   type Scene,
+  type WeatherConfig,
+  type WeatherSnapshot,
 } from "@/lib/supabase";
 import { isOpen } from "@/lib/devices";
 
@@ -37,6 +39,8 @@ export type Home = {
   userEmail: string | null;
   devices: Device[];
   floor: FloorHeating | null;
+  weather: WeatherSnapshot | null;
+  weatherConfig: WeatherConfig | null;
   setFloor: (patch: Partial<Pick<FloorHeating, "enabled" | "target">>) => Promise<void>;
   commands: Command[];
   events: HomeEvent[];
@@ -78,6 +82,8 @@ export function HomeProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<{ name: string | null; email: string | null }>({ name: null, email: null });
   const [rawDevices, setDevices] = useState<Device[]>([]);
   const [floor, setFloorState] = useState<FloorHeating | null>(null);
+  const [weather, setWeather] = useState<WeatherSnapshot | null>(null);
+  const [weatherConfig, setWeatherConfig] = useState<WeatherConfig | null>(null);
   const [commands, setCommands] = useState<Command[]>([]);
   const [events, setEvents] = useState<HomeEvent[]>([]);
   const [automations, setAutomations] = useState<Automation[]>([]);
@@ -132,7 +138,7 @@ export function HomeProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      const [d, c, e, a, s, au, sc, fh] = await Promise.all([
+      const [d, c, e, a, s, au, sc, fh, w, wc] = await Promise.all([
         supabase.from("devices").select("*"),
         supabase.from("commands").select("*").order("id", { ascending: false }).limit(COMMAND_HISTORY),
         supabase.from("events").select("*").order("id", { ascending: false }).limit(EVENT_HISTORY),
@@ -141,6 +147,8 @@ export function HomeProvider({ children }: { children: React.ReactNode }) {
         supabase.from("automations").select("*").order("created_at"),
         supabase.from("scenes").select("*").order("created_at"),
         supabase.from("floor_heating").select("*").maybeSingle(),
+        supabase.from("weather").select("*").maybeSingle(),
+        supabase.from("weather_config").select("*").maybeSingle(),
       ]);
       if (cancelled) return;
       setDevices(d.data ?? []);
@@ -151,6 +159,8 @@ export function HomeProvider({ children }: { children: React.ReactNode }) {
       setAutomations(au.data ?? []);
       setScenes(sc.data ?? []);
       setFloorState(fh.data);
+      setWeather(w.data);
+      setWeatherConfig(wc.data);
       setReady(true);
     }
 
@@ -176,6 +186,9 @@ export function HomeProvider({ children }: { children: React.ReactNode }) {
       })
       .on<FloorHeating>("postgres_changes", { event: "UPDATE", schema: "public", table: "floor_heating" }, (p) => {
         setFloorState(p.new);
+      })
+      .on<WeatherSnapshot>("postgres_changes", { event: "UPDATE", schema: "public", table: "weather" }, (p) => {
+        setWeather(p.new);
       })
       .on<Scene>("postgres_changes", { event: "*", schema: "public", table: "scenes" }, (p) => {
         if (p.eventType === "DELETE") setScenes((list) => list.filter((x) => x.id !== (p.old as Scene).id));
@@ -296,7 +309,7 @@ export function HomeProvider({ children }: { children: React.ReactNode }) {
 
   const saveAutomation = useCallback<Home["saveAutomation"]>(
     async (a) => {
-      const row = { name: a.name.trim(), trigger: a.trigger, actions: a.actions, enabled: a.enabled ?? true };
+      const row = { name: a.name.trim(), trigger: a.trigger, actions: a.actions, conditions: a.conditions ?? [], enabled: a.enabled ?? true };
       const { data, error } = a.id
         ? await supabase.from("automations").update(row).eq("id", a.id).select().single()
         : await supabase.from("automations").insert(row).select().single();
@@ -401,6 +414,8 @@ export function HomeProvider({ children }: { children: React.ReactNode }) {
     userEmail: user.email,
     devices,
     floor,
+    weather,
+    weatherConfig,
     setFloor,
     commands,
     events,

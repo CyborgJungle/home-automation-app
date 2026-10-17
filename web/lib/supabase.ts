@@ -53,6 +53,8 @@ export type IntegrationStatus = {
 
 export type AutomationTrigger =
   | { type: "time"; at: string; days: number[] }
+  | ({ type: "weather" } & WeatherPredicate)
+  | { type: "sun"; event: "sunrise" | "sunset"; offset_minutes: number; days: number[] }
   | { type: "device"; device_id: string; key: string; op: "eq" | "ne" | "lt" | "gt"; value: unknown; option?: string }
   | { type: "event"; event: string; device_id?: string };
 
@@ -74,7 +76,7 @@ export type Automation = {
   name: string;
   enabled: boolean;
   trigger: AutomationTrigger;
-  conditions: unknown[];
+  conditions: WeatherCondition[];
   actions: AutomationAction[];
   last_run_at: string | null;
   created_at: string;
@@ -107,4 +109,23 @@ export type FloorHeating = {
   helper_zone: string;
   heating: boolean;
   last_switch_at: string | null;
+};
+
+export type WeatherKey = "temperature" | "rain" | "precipitation" | "cloud_cover" | "wind_speed" | "is_day" | "rain_probability";
+export type WeatherPredicate = {
+  key: WeatherKey;
+  op: "eq" | "ne" | "lt" | "gt";
+  value: number | boolean;
+  option?: string;
+};
+export type WeatherCondition = WeatherPredicate & { type: "weather" };
+export type WeatherConfig = { id: number; label: string; postcode: string; latitude: number | null; longitude: number | null };
+export type WeatherSnapshot = {
+  id: number;
+  state: Record<Exclude<WeatherKey, "is_day">, number | null> & { is_day: boolean | null; weather_code: number | null };
+  sun_events: Record<string, { sunrise: string; sunset: string }>;
+  observed_at: string | null;
+  checked_at: string | null;
+  updated_at: string;
+  error: string | null;
 };

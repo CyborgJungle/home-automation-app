@@ -4,6 +4,7 @@ import { useState, useSyncExternalStore } from "react";
 import { DeviceSheet, DeviceTile } from "@/components/devices";
 import { Blob, Icon } from "@/components/icons";
 import { PiStatus } from "@/components/ui";
+import { WeatherSummary } from "@/components/weather";
 import { CATEGORIES, displayState, isActive, lowBattery, num, ON_PI, type IconName } from "@/lib/devices";
 import { useHome } from "@/lib/home";
 import type { Device } from "@/lib/supabase";
@@ -175,6 +176,8 @@ export default function DevicesPage() {
           </span>
         )}
       </div>
+
+      <WeatherSummary />
 
       {piDevices && !agentOnline && (
         <div className="banner">

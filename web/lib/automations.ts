@@ -2,6 +2,7 @@
 
 import { actionOptions, triggerOptions } from "@/lib/devices";
 import type { Automation, AutomationAction, AutomationTrigger, Device, Scene } from "@/lib/supabase";
+import { describeWeather } from "@/lib/weather";
 
 export const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 // Shown Monday first, as on a calendar.
@@ -20,6 +21,11 @@ const nameOf = (devices: Device[], id?: string) => devices.find((d) => d.id === 
 
 export function describeTrigger(t: AutomationTrigger, devices: Device[]) {
   if (t.type === "time") return `At ${t.at}, ${daysLabel(t.days)}`;
+  if (t.type === "weather") return `When ${describeWeather(t).toLowerCase()}`;
+  if (t.type === "sun") {
+    const offset = t.offset_minutes;
+    return `${offset === 0 ? "At" : `${Math.abs(offset)} min ${offset < 0 ? "before" : "after"}`} ${t.event}, ${daysLabel(t.days)}`;
+  }
   if (t.type === "event") {
     return t.device_id ? `When ${nameOf(devices, t.device_id)} rings` : "When the doorbell rings";
   }
@@ -45,5 +51,5 @@ export function summary(a: Automation, devices: Device[], scenes: Scene[] = []) 
         : `${nameOf(devices, x.device_id)}: ${describeAction(x, devices)}`,
     )
     .join(", ");
-  return { when: describeTrigger(a.trigger, devices), then: then || "nothing yet" };
+  return { when: describeTrigger(a.trigger, devices), then: then || "nothing yet", onlyIf: (a.conditions ?? []).map(c => describeWeather(c, true).toLowerCase()).join(" and ") };
 }

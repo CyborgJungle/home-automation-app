@@ -8,9 +8,11 @@ import { DAYS, describeTrigger, summary, WEEK } from "@/lib/automations";
 import { ChipChoice, deviceGroups, Picker } from "@/components/picker";
 import { canTrigger, triggerOptions } from "@/lib/devices";
 import { useHome } from "@/lib/home";
-import type { Automation, AutomationAction, AutomationTrigger, Device, Scene } from "@/lib/supabase";
+import type { Automation, AutomationAction, AutomationTrigger, Device, Scene, WeatherCondition } from "@/lib/supabase";
+import { WEATHER_OPTIONS, weatherOptionFor, weatherPredicate } from "@/lib/weather";
 
-type When = "time" | "device" | "event";
+type When = "time" | "device" | "event" | "weather" | "sun";
+type ConditionRow = { option: string; value: number | null };
 
 type Draft = {
   id?: string;
@@ -23,6 +25,11 @@ type Draft = {
   triggerOption: string;
   triggerValue: number | null;
   eventDevice: string; // "" = any doorbell
+  weatherOption: string;
+  weatherValue: number | null;
+  sunEvent: "sunrise" | "sunset";
+  sunOffset: number;
+  conditions: ConditionRow[];
   actions: ActionRow[];
 };
 
@@ -30,6 +37,8 @@ const WHEN: { id: When; label: string; icon: IconKey; tone: string }[] = [
   { id: "time", label: "Time", icon: "clock", tone: "lavender" },
   { id: "device", label: "Device", icon: "bulb", tone: "yellow" },
   { id: "event", label: "Doorbell", icon: "bell", tone: "sage" },
+  { id: "weather", label: "Weather", icon: "cloud", tone: "sky" },
+  { id: "sun", label: "Sun", icon: "sun", tone: "yellow" },
 ];
 
 const toneOfWhen = (w: When) => WHEN.find((x) => x.id === w)!.tone;
@@ -45,6 +54,11 @@ function emptyDraft(): Draft {
     triggerOption: "",
     triggerValue: null,
     eventDevice: "",
+    weatherOption: "temperature_below",
+    weatherValue: null,
+    sunEvent: "sunset",
+    sunOffset: 0,
+    conditions: [],
     actions: [emptyRow()],
   };
 }
@@ -59,17 +73,22 @@ function toDraft(a: Automation): Draft {
     enabled: a.enabled,
     when: t.type,
     at: t.type === "time" ? t.at : d.at,
-    days: t.type === "time" ? t.days : d.days,
+    days: t.type === "time" || t.type === "sun" ? t.days : d.days,
     triggerDevice: t.type === "device" ? t.device_id : "",
     triggerOption: t.type === "device" ? t.option ?? "" : "",
     triggerValue: t.type === "device" && typeof t.value === "number" ? t.value : null,
     eventDevice: t.type === "event" ? t.device_id ?? "" : "",
+    weatherOption: t.type === "weather" ? weatherOptionFor(t)?.id ?? "" : d.weatherOption,
+    weatherValue: t.type === "weather" && typeof t.value === "number" ? t.value : null,
+    sunEvent: t.type === "sun" ? t.event : "sunset",
+    sunOffset: t.type === "sun" ? t.offset_minutes : 0,
+    conditions: (a.conditions ?? []).map(c => ({ option: weatherOptionFor(c)?.id ?? "", value: typeof c.value === "number" ? c.value : null })),
     actions: toRows(a.actions),
   };
 }
 
 // Turns the form into the trigger/actions the Supabase engine runs, or explains what's missing.
-function build(draft: Draft, devices: Device[], scenes: Scene[]): { trigger: AutomationTrigger; actions: AutomationAction[] } | string {
+function build(draft: Draft, devices: Device[], scenes: Scene[]): { trigger: AutomationTrigger; actions: AutomationAction[]; conditions: WeatherCondition[] } | string {
   let trigger: AutomationTrigger;
   if (draft.when === "time") {
     if (!/^\d{2}:\d{2}$/.test(draft.at)) return "Pick a time.";
@@ -81,6 +100,14 @@ function build(draft: Draft, devices: Device[], scenes: Scene[]): { trigger: Aut
     if (!device || !option) return "Choose a device and what should happen to it.";
     const value = option.number ? draft.triggerValue ?? option.number.default : option.value;
     trigger = { type: "device", device_id: device.id, key: option.key, op: option.op, value, option: option.id };
+  } else if (draft.when === "weather") {
+    const predicate = weatherPredicate(draft.weatherOption, draft.weatherValue);
+    if (typeof predicate === "string") return predicate;
+    trigger = { type: "weather", ...predicate };
+  } else if (draft.when === "sun") {
+    if (!draft.days.length) return "Pick at least one day.";
+    if (!Number.isInteger(draft.sunOffset) || Math.abs(draft.sunOffset) > 180) return "Choose an offset between 180 minutes before and after.";
+    trigger = { type: "sun", event: draft.sunEvent, offset_minutes: draft.sunOffset, days: [...draft.days].sort() };
   } else {
     trigger = draft.eventDevice
       ? { type: "event", event: "doorbell.ring", device_id: draft.eventDevice }
@@ -89,7 +116,13 @@ function build(draft: Draft, devices: Device[], scenes: Scene[]): { trigger: Aut
 
   const actions = buildActions(draft.actions, devices, scenes);
   if (typeof actions === "string") return actions;
-  return { trigger, actions };
+  const conditions: WeatherCondition[] = [];
+  for (const row of draft.conditions) {
+    const predicate = weatherPredicate(row.option, row.value);
+    if (typeof predicate === "string") return predicate;
+    conditions.push({ type: "weather", ...predicate });
+  }
+  return { trigger, actions, conditions };
 }
 
 // A few starting points, filled in with your own devices where possible.
@@ -101,6 +134,11 @@ function ideas(devices: Device[]): { title: string; tone: string; draft: Draft }
   const tv = find((d) => d.kind === "tv");
   const base = emptyDraft();
   return [
+    {
+      title: "30 min before sunset → living-room lights on",
+      tone: "yellow",
+      draft: { ...base, name: "Evening lights", when: "sun", days: [0, 1, 2, 3, 4, 5, 6], sunEvent: "sunset", sunOffset: -30, actions: [{ device_id: living, option: living ? "on" : "", value: null }] },
+    },
     {
       title: "Open the blinds on weekday mornings",
       tone: "lavender",
@@ -150,7 +188,7 @@ export default function AutomationsPage() {
 
       <div className="stack">
         {automations.map((a) => {
-          const { when, then } = summary(a, devices, scenes);
+          const { when, then, onlyIf } = summary(a, devices, scenes);
           const w = WHEN.find((x) => x.id === a.trigger.type)!;
           return (
             <article
@@ -169,6 +207,7 @@ export default function AutomationsPage() {
               </div>
               <h3>{a.name}</h3>
               <p className="auto-when">{when}</p>
+              {onlyIf && <p className="auto-when">Only if {onlyIf}</p>}
               <p className="auto-then">
                 <Icon name="chevron" size={14} stroke={3} /> {then}
               </p>
@@ -248,7 +287,7 @@ function Editor({ initial, onClose }: { initial: Draft; onClose: () => void }) {
 
         <div className={`block tone-${toneOfWhen(draft.when)}`}>
           <span className="badge">When</span>
-          <div className="segmented" role="radiogroup" aria-label="Starts when">
+          <div className="segmented automation-starts" role="radiogroup" aria-label="Starts when">
             {WHEN.map((w) => (
               <button key={w.id} role="radio" aria-checked={draft.when === w.id} className={draft.when === w.id ? "selected" : ""} onClick={() => set({ when: w.id })}>
                 <Icon name={w.icon} size={16} /> {w.label}
@@ -262,7 +301,16 @@ function Editor({ initial, onClose }: { initial: Draft; onClose: () => void }) {
                 <span>At</span>
                 <input type="time" value={draft.at} onChange={(e) => set({ at: e.target.value })} />
               </label>
-              <div className="days" role="group" aria-label="Days">
+            </>
+          )}
+
+          {draft.when === "sun" && <>
+            <ChipChoice label="Sun event" value={draft.sunEvent} options={[{ value: "sunrise", label: "Sunrise" }, { value: "sunset", label: "Sunset" }]} onChange={(v) => set({ sunEvent: v as "sunrise" | "sunset" })} />
+            <NumberField input={{ min: -180, max: 180, step: 5, default: 0, unit: " min" }} value={draft.sunOffset} onChange={(sunOffset) => set({ sunOffset })} />
+            <p className="muted small">Negative minutes are before; positive minutes are after. Uses Amsterdam local time.</p>
+          </>}
+
+          {(draft.when === "time" || draft.when === "sun") && <div className="days" role="group" aria-label="Days">
                 {WEEK.map((d) => {
                   const on = draft.days.includes(d);
                   return (
@@ -277,8 +325,12 @@ function Editor({ initial, onClose }: { initial: Draft; onClose: () => void }) {
                   );
                 })}
               </div>
-            </>
-          )}
+          }
+
+          {draft.when === "weather" && <>
+            <WeatherChoice option={draft.weatherOption} value={draft.weatherValue} onChange={(weatherOption, weatherValue) => set({ weatherOption, weatherValue })} />
+            <p className="muted small">Runs when the condition becomes true. Weather updates every 15 minutes; stale readings are ignored.</p>
+          </>}
 
           {draft.when === "device" && (
             <>
@@ -313,6 +365,16 @@ function Editor({ initial, onClose }: { initial: Draft; onClose: () => void }) {
           )}
         </div>
 
+        <div className="block tone-sand">
+          <span className="badge">Only if</span>
+          {draft.conditions.length === 0 && <p className="muted small">Optional weather conditions. Every condition must match when the automation starts.</p>}
+          {draft.conditions.map((row, i) => <div className="weather-condition" key={i}>
+            <WeatherChoice condition option={row.option} value={row.value} onChange={(option, value) => set({ conditions: draft.conditions.map((c, j) => i === j ? { option, value } : c) })} />
+            <button className="pill light small" onClick={() => set({ conditions: draft.conditions.filter((_, j) => j !== i) })} aria-label={`Remove weather condition ${i + 1}`}><Icon name="close" size={14} /> Remove</button>
+          </div>)}
+          <button className="pill light small" onClick={() => set({ conditions: [...draft.conditions, { option: "temperature_below", value: null }] })}><Icon name="plus" size={16} /> Add weather condition</button>
+        </div>
+
         <div className="block tone-mint">
           <span className="badge">Then</span>
           <ActionRows rows={draft.actions} onChange={(actions) => set({ actions })} devices={devices} scenes={scenes} />
@@ -333,7 +395,18 @@ function Editor({ initial, onClose }: { initial: Draft; onClose: () => void }) {
             </button>
           )}
         </div>
+        <p className="muted small">Run now plays the actions immediately, without checking the trigger or conditions.</p>
       </div>
     </Sheet>
   );
+}
+
+function WeatherChoice({ option, value, onChange, condition = false }: { option: string; value: number | null; onChange: (option: string, value: number | null) => void; condition?: boolean }) {
+  const selected = WEATHER_OPTIONS.find(o => o.id === option);
+  return <>
+    <Picker label={condition ? "Weather condition" : "Weather change"} placeholder="Choose weather" value={option}
+      groups={[{ title: condition ? "Only if" : "When the weather changes", items: WEATHER_OPTIONS.map(o => ({ value: o.id, label: condition ? o.conditionLabel : o.label, art: <span className="picker-icon tone-sky"><Icon name="cloud" size={16} /></span> })) }]}
+      onChange={(v) => onChange(v, null)} />
+    {selected?.number && <NumberField input={selected.number} value={value} onChange={(v) => onChange(option, v)} />}
+  </>;
 }
