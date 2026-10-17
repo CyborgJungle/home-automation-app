@@ -24,6 +24,13 @@ function satisfied(a: SceneAction, s: State): boolean | null {
       return Boolean(s.on) === Boolean(p.on);
     case "mute":
       return Boolean(s.muted) === Boolean(p.on);
+    case "play":
+    case "favorite":
+      return Boolean(s.playing);
+    case "pause":
+      return !s.playing;
+    case "volume":
+      return p.volume == null ? null : close(s.volume, p.volume, 2);
     case "open":
       return num(s.position) === 0;
     case "close":

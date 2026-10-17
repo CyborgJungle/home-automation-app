@@ -870,6 +870,44 @@ button.chip.selected {
   font-size: 28px;
 }
 
+.now-playing {
+  display: grid;
+  gap: 3px;
+  padding: 16px;
+  border-radius: var(--r-md);
+  background: #fff;
+  border: 1.5px solid var(--line);
+}
+
+.now-playing strong {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.transport {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+}
+
+.round.big-round {
+  width: 60px;
+  height: 60px;
+}
+
+.round.big-round.dark {
+  width: 72px;
+  height: 72px;
+}
+
+.sheet-subtitle {
+  font-size: 15px;
+  font-weight: 800;
+}
+
 .tv-volume {
   flex: 0 0 64px;
   text-align: center;

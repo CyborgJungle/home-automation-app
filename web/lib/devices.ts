@@ -14,6 +14,7 @@ export type IconName =
   | "thermo"
   | "flame"
   | "tv"
+  | "speaker"
   | "bell"
   | "sensor"
   | "remote";
@@ -23,14 +24,14 @@ type State = Record<string, unknown>;
 export const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
 
 // Integrations that need the Raspberry Pi to be online.
-export const ON_PI: Device["integration"][] = ["tradfri", "eufy", "brel", "bravia"];
+export const ON_PI: Device["integration"][] = ["tradfri", "eufy", "brel", "bravia", "sonos"];
 
 export const CATEGORIES: { id: string; title: string; kinds: string[]; tone: Tone }[] = [
   { id: "climate", title: "Climate", kinds: ["zone", "heating"], tone: "peach" },
   { id: "lights", title: "Lights", kinds: ["group", "light"], tone: "yellow" },
   { id: "plugs", title: "Plugs", kinds: ["plug"], tone: "mint" },
   { id: "blinds", title: "Blinds", kinds: ["blind"], tone: "lavender" },
-  { id: "media", title: "Media", kinds: ["tv"], tone: "pink" },
+  { id: "media", title: "Media", kinds: ["tv", "speaker"], tone: "pink" },
   { id: "doorbell", title: "Doorbell", kinds: ["doorbell"], tone: "sage" },
   { id: "sensors", title: "Sensors & remotes", kinds: ["sensor", "remote"], tone: "sky" },
 ];
@@ -43,6 +44,7 @@ export const KIND_LABELS: Record<string, string> = {
   zone: "heating",
   heating: "heating system",
   tv: "TV",
+  speaker: "speaker",
   doorbell: "doorbell",
 };
 
@@ -66,6 +68,8 @@ export function iconOf(d: Device): IconName {
       return "flame";
     case "tv":
       return "tv";
+    case "speaker":
+      return "speaker";
     case "doorbell":
       return "bell";
     case "remote":
@@ -101,6 +105,9 @@ export function displayState(d: Device, commands: Command[]): State {
     if (c.action === "set") state = { ...state, ...p };
     else if (c.action === "power") state.on = p.on;
     else if (c.action === "mute") state.muted = p.on;
+    else if (c.action === "play" || c.action === "favorite") state.playing = true;
+    else if (c.action === "pause") state.playing = false;
+    else if (c.action === "volume" && p.volume != null) state.volume = p.volume;
     else if (c.action === "set_temperature") state.setpoint = p.setpoint;
     else if (c.action === "set_mode") state.mode = p.mode;
     else if (c.action === "open") state.position = 0;
@@ -123,6 +130,8 @@ export function isActive(d: Device, s: State) {
       return num(s.temperature) !== null && num(s.setpoint) !== null && num(s.temperature)! < num(s.setpoint)!;
     case "heating":
       return s.mode !== "HeatingOff";
+    case "speaker":
+      return Boolean(s.playing);
     default:
       return false;
   }
@@ -161,6 +170,10 @@ export function describe(d: Device, s: State): string {
     }
     case "tv":
       return s.on ? ["On", s.playing].filter(Boolean).join(" · ") : "Standby";
+    case "speaker": {
+      const what = s.title ? [s.title, s.artist].filter(Boolean).join(" — ") : s.source;
+      return [s.playing ? "Playing" : "Paused", what].filter(Boolean).join(" · ");
+    }
     case "doorbell":
       return s.last_ring_at ? `Rang ${new Date(String(s.last_ring_at)).toLocaleString("en-GB", { weekday: "short", hour: "2-digit", minute: "2-digit" })}` : "No rings yet";
     default:
@@ -173,6 +186,7 @@ export function tapAction(d: Device, s: State): { action: string; params: State 
   if (!d.online) return null;
   if (d.kind === "light" || d.kind === "plug" || d.kind === "group") return { action: "set", params: { on: !s.on } };
   if (d.kind === "tv") return { action: "power", params: { on: !s.on } };
+  if (d.kind === "speaker") return { action: s.playing ? "pause" : "play", params: {} };
   return null;
 }
 
@@ -200,6 +214,11 @@ export function triggerOptions(d: Device): TriggerOption[] {
       return [
         { id: "on", label: "turns on", key: "on", op: "eq", value: true },
         { id: "off", label: "turns off", key: "on", op: "eq", value: false },
+      ];
+    case "speaker":
+      return [
+        { id: "playing", label: "starts playing", key: "playing", op: "eq", value: true },
+        { id: "stopped", label: "stops playing", key: "playing", op: "eq", value: false },
       ];
     case "zone":
       return [
@@ -295,6 +314,24 @@ export function actionOptions(d: Device): ActionOption[] {
         fixed("away", "Mode: Away", "set_mode", { mode: "Away" }),
         fixed("off", "Mode: Off", "set_mode", { mode: "HeatingOff" }),
       ];
+    case "speaker": {
+      const favorites = Array.isArray(d.state.favorites) ? (d.state.favorites as { id: string; title: string }[]) : [];
+      return [
+        fixed("play", "Play", "play"),
+        fixed("pause", "Pause", "pause"),
+        fixed("next", "Next track", "next"),
+        {
+          id: "volume",
+          label: "Set volume",
+          action: "volume",
+          params: (n) => ({ volume: n }),
+          number: { min: 0, max: 100, step: 5, unit: "%", default: 25 },
+        },
+        fixed("mute", "Mute", "mute", { on: true }),
+        fixed("unmute", "Unmute", "mute", { on: false }),
+        ...favorites.map((f) => fixed(`fav:${f.id}`, `Play “${f.title}”`, "favorite", { id: f.id, title: f.title })),
+      ];
+    }
     case "tv":
       return [
         fixed("on", "Turn on", "power", { on: true }),

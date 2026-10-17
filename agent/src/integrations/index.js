@@ -1,6 +1,6 @@
 // Integrations that run on the Pi. Honeywell evohome runs in Supabase instead
 // (supabase/functions/evohome), since it only needs Honeywell's cloud.
-export const AGENT_INTEGRATIONS = ['tradfri', 'eufy', 'brel', 'bravia'];
+export const AGENT_INTEGRATIONS = ['tradfri', 'eufy', 'brel', 'bravia', 'sonos'];
 
 // Builds the integrations that have credentials in .env. Each one is imported
 // only when configured: the Eufy library is large, and a Pi 2 shouldn't load
@@ -18,6 +18,10 @@ export async function createIntegrations(config, hub, log) {
   if (config.brel) {
     const { createBrel } = await import('./brel.js');
     list.push(createBrel(config.brel, hub, log.child('brel')));
+  }
+  if (config.sonos) {
+    const { createSonos } = await import('./sonos.js');
+    list.push(createSonos(config.sonos, hub, log.child('sonos')));
   }
   if (config.bravia) {
     const { createBravia } = await import('./bravia.js');

@@ -11,6 +11,7 @@ A first version for testing the connections: can we reach the IKEA lights, the H
                        ├─► IKEA TRÅDFRI gateway   (your home network)
                        ├─► Brel Home hub          (your home network, UDP)
                        ├─► Sony BRAVIA TV         (your home network, HTTP)
+                       ├─► Sonos speakers         (your home network, UPnP)
                        └─► Eufy doorbell          (Eufy cloud + push)
 ```
 
@@ -85,6 +86,7 @@ Fill in `.env` one integration at a time and test with **`npm run discover`** af
 
 - **IKEA TRÅDFRI:** run `npm run pair-tradfri -- <security code>`. The code is on the label under the gateway. It saves the gateway address and its key to `.env` for you.
 - **Brel Home blinds:** in the Brel Home app, open **Me** and tap 5 times on the version number (iOS) or right of the photo (Android) to show the hub's 16-character key. Put it in `BREL_KEY`. The hub is found automatically. Blinds are called "Blind 1", "Blind 2"…; name them with `BREL_NAMES` (the macs are in `npm run discover`).
+- **Sonos:** nothing to set up beyond `SONOS_HOST=<a speaker's IP>` (or `SONOS=on`); speakers are found on the network. Sonos favourites (the heart in the Sonos app) can be played from the app, scenes and automations.
 - **Sony TV:** on the TV, go to **Settings → Network & Internet → Home network → IP control**. Set **Authentication** to *Normal and Pre-Shared Key*, choose a **Pre-Shared Key**, and turn on **Remote start** (so the TV can be switched on from standby). Put the TV's IP address in `BRAVIA_HOST` and the key in `BRAVIA_PSK`.
 - **Eufy:** ideally a second Eufy account that the doorbell is shared with (Eufy app → device settings → share). That way the agent won't sign your phone out. On the first login Eufy may email a code or ask for a captcha. The agent log tells you which `.env` line to fill in, then run it again.
 

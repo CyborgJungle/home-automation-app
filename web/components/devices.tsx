@@ -25,6 +25,7 @@ export const INTEGRATION_NAMES: Record<Device["integration"], string> = {
   eufy: "Eufy",
   brel: "Brel Home",
   bravia: "Sony BRAVIA",
+  sonos: "Sonos",
 };
 
 function useDevice(d: Device) {
@@ -265,6 +266,8 @@ function DeviceControls({ device: d }: { device: Device }) {
         </>
       )}
 
+      {d.kind === "speaker" && <SpeakerControls state={s} reachable={reachable} go={go} />}
+
       {(d.kind === "doorbell" || d.kind === "sensor" || d.kind === "remote") && (
         <div className="stat-row">
           {num(s.battery) !== null && (
@@ -287,5 +290,65 @@ function DeviceControls({ device: d }: { device: Device }) {
 
       <p className="muted small">Updated {timeAgo(d.updated_at)}</p>
     </div>
+  );
+}
+
+function SpeakerControls({
+  state: s,
+  reachable,
+  go,
+}: {
+  state: Record<string, unknown>;
+  reachable: boolean;
+  go: (action: string, params?: Record<string, unknown>) => void;
+}) {
+  const favorites = Array.isArray(s.favorites) ? (s.favorites as { id: string; title: string }[]) : [];
+  const grouped = Array.isArray(s.grouped_with) ? (s.grouped_with as string[]) : [];
+  return (
+    <>
+      <div className="now-playing">
+        <span className="muted small">{s.playing ? "Now playing" : "Paused"}{s.source ? ` · ${String(s.source)}` : ""}</span>
+        <strong>{String(s.title ?? s.source ?? "Nothing playing")}</strong>
+        {Boolean(s.artist) && <span className="muted">{String(s.artist)}</span>}
+        {grouped.length > 0 && <span className="muted small">Grouped with {grouped.join(", ")}</span>}
+      </div>
+      <div className="transport">
+        <button className="round big-round" disabled={!reachable} aria-label="Previous" onClick={() => go("previous")}>
+          <Icon name="prev" size={22} />
+        </button>
+        <button className="round big-round dark" disabled={!reachable} aria-label={s.playing ? "Pause" : "Play"} onClick={() => go(s.playing ? "pause" : "play")}>
+          <Icon name={s.playing ? "pause" : "play"} size={26} />
+        </button>
+        <button className="round big-round" disabled={!reachable} aria-label="Next" onClick={() => go("next")}>
+          <Icon name="next" size={22} />
+        </button>
+      </div>
+      <Slider
+        label="Volume"
+        value={num(s.volume) ?? 0}
+        min={0}
+        max={100}
+        format={(n) => `${n}%`}
+        disabled={!reachable}
+        onCommit={(n) => go("volume", { volume: n })}
+      />
+      <button className="pill light wide" disabled={!reachable} onClick={() => go("mute", { on: !s.muted })}>
+        <Icon name="mute" size={18} /> {s.muted ? "Unmute" : "Mute"}
+      </button>
+      {favorites.length > 0 ? (
+        <>
+          <h3 className="sheet-subtitle">Favourites</h3>
+          <div className="chips">
+            {favorites.map((f) => (
+              <button key={f.id} className="chip" disabled={!reachable} onClick={() => go("favorite", { id: f.id, title: f.title })}>
+                <Icon name="play" size={14} /> {f.title}
+              </button>
+            ))}
+          </div>
+        </>
+      ) : (
+        <p className="muted small">Add favourites in the Sonos app (heart a station or playlist) to start them here, in scenes and in automations.</p>
+      )}
+    </>
   );
 }

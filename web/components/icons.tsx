@@ -102,6 +102,26 @@ const PATHS: Record<string, React.ReactNode> = {
   ),
   check: <path d="m5 12.5 4.5 4.5L19 7.5" />,
   play: <path d="M8 5.5v13l10.5-6.5z" />,
+  pause: <path d="M8 5.5v13M16 5.5v13" />,
+  next: (
+    <>
+      <path d="M6 6v12l8.5-6z" />
+      <path d="M18 6v12" />
+    </>
+  ),
+  prev: (
+    <>
+      <path d="M18 6v12l-8.5-6z" />
+      <path d="M6 6v12" />
+    </>
+  ),
+  speaker: (
+    <>
+      <rect x="6" y="3" width="12" height="18" rx="3" />
+      <circle cx="12" cy="14" r="3.2" />
+      <circle cx="12" cy="7.5" r="1" />
+    </>
+  ),
   stop: <rect x="7" y="7" width="10" height="10" rx="2" />,
   up: <path d="m6 15 6-6 6 6" />,
   down: <path d="m6 9 6 6 6-6" />,

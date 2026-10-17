@@ -38,6 +38,14 @@ export const config = {
       }
     : null,
 
+  // No key needed: speakers are found on the network. SONOS_HOST is optional,
+  // a speaker to ask first.
+  sonos: env.SONOS === 'on' || env.SONOS_HOST
+    ? {
+        host: env.SONOS_HOST || undefined,
+      }
+    : null,
+
   bravia: env.BRAVIA_HOST && env.BRAVIA_PSK
     ? {
         host: env.BRAVIA_HOST,
