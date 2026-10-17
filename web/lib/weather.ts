@@ -1,5 +1,5 @@
 import type { NumberInput } from "@/lib/devices";
-import type { WeatherPredicate, WeatherSnapshot } from "@/lib/supabase";
+import type { WeatherPredicate } from "@/lib/supabase";
 
 export type WeatherOption = WeatherPredicate & {
   id: string;
@@ -37,25 +37,4 @@ export function describeWeather(rule: WeatherPredicate, condition = false) {
   const option = weatherOptionFor(rule);
   if (!option) return `${rule.key.replaceAll("_", " ")} ${rule.op} ${rule.value}`;
   return `${condition ? option.conditionLabel : option.label}${option.number ? ` ${rule.value}${option.number.unit}` : ""}`;
-}
-
-export function weatherIsFresh(weather: WeatherSnapshot | null, now = Date.now()) {
-  if (!weather?.observed_at) return false;
-  const observed = Date.parse(weather.observed_at);
-  return Number.isFinite(observed) && now - observed <= 45 * 60_000 && observed - now <= 5 * 60_000;
-}
-
-export function weatherLabel(code: number | null) {
-  if (code === null) return "Local weather";
-  if (code === 0) return "Clear sky";
-  if (code === 1) return "Mostly clear";
-  if (code === 2) return "Partly cloudy";
-  if (code === 3) return "Overcast";
-  if (code < 50) return "Foggy";
-  if (code < 60) return "Drizzle";
-  if (code < 70) return "Rain";
-  if (code < 80) return "Snow";
-  if (code < 85) return "Rain showers";
-  if (code < 90) return "Snow showers";
-  return "Thunderstorms";
 }

@@ -119,13 +119,3 @@ export type WeatherPredicate = {
   option?: string;
 };
 export type WeatherCondition = WeatherPredicate & { type: "weather" };
-export type WeatherConfig = { id: number; label: string; postcode: string; latitude: number | null; longitude: number | null };
-export type WeatherSnapshot = {
-  id: number;
-  state: Record<Exclude<WeatherKey, "is_day">, number | null> & { is_day: boolean | null; weather_code: number | null };
-  sun_events: Record<string, { sunrise: string; sunset: string }>;
-  observed_at: string | null;
-  checked_at: string | null;
-  updated_at: string;
-  error: string | null;
-};

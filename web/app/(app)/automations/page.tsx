@@ -375,6 +375,10 @@ function Editor({ initial, onClose }: { initial: Draft; onClose: () => void }) {
           <button className="pill light small" onClick={() => set({ conditions: [...draft.conditions, { option: "temperature_below", value: null }] })}><Icon name="plus" size={16} /> Add weather condition</button>
         </div>
 
+        {(draft.when === "weather" || draft.when === "sun" || draft.conditions.length > 0) && (
+          <p className="muted small">Weather for Amsterdam · 1011 AB by <a href="https://open-meteo.com/" target="_blank" rel="noreferrer">Open-Meteo</a>. Uses area forecasts, which can differ from conditions at your home.</p>
+        )}
+
         <div className="block tone-mint">
           <span className="badge">Then</span>
           <ActionRows rows={draft.actions} onChange={(actions) => set({ actions })} devices={devices} scenes={scenes} />

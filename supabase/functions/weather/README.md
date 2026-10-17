@@ -27,9 +27,10 @@ and schedules use `Europe/Amsterdam` weekdays and daylight-saving rules.
    the `weather-poll` cron job. The job polls every 15 minutes. `checked_at` claims
    prevent overlapping polls within five minutes.
 
-The dashboard only reads cached data and subscribes to changes. Opening it never
+Weather runs in the cloud for automations, even when the app is closed. Home
+does not display or subscribe to weather readings, and opening the app never
 calls Open-Meteo. Current conditions are area-level model estimates, not a local
-rain sensor. The dashboard provides the Open-Meteo attribution link.
+rain sensor. The automation editor provides the Open-Meteo attribution link.
 
 ## Rules
 
