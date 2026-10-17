@@ -135,7 +135,6 @@ export default function DevicesPage() {
   const lightsOn = devices.filter((d) => d.kind === "light" && d.online && displayState(d, commands).on).length;
   const temps = devices.filter((d) => d.kind === "zone").map((d) => num(d.state.temperature)).filter((t): t is number => t !== null);
   const avgTemp = temps.length ? temps.reduce((a, b) => a + b, 0) / temps.length : null;
-  const blindsOpen = devices.filter((d) => d.kind === "blind" && num(d.state.position) !== null && num(d.state.position)! < 100).length;
   const piDevices = devices.some((d) => ON_PI.includes(d.integration));
 
   const sections = CATEGORIES.map((c) => ({
@@ -168,11 +167,6 @@ export default function DevicesPage() {
         {avgTemp !== null && (
           <span className="chip tone-peach">
             <Icon name="thermo" size={16} /> {avgTemp.toFixed(1)}° inside
-          </span>
-        )}
-        {devices.some((d) => d.kind === "blind") && (
-          <span className="chip tone-lavender">
-            <Icon name="blind" size={16} /> {blindsOpen} open
           </span>
         )}
       </div>
