@@ -296,7 +296,7 @@ export function HomeProvider({ children }: { children: React.ReactNode }) {
 
   const saveAutomation = useCallback<Home["saveAutomation"]>(
     async (a) => {
-      const row = { name: a.name.trim(), trigger: a.trigger, actions: a.actions, enabled: a.enabled ?? true };
+      const row = { name: a.name.trim(), trigger: a.trigger, actions: a.actions, conditions: a.conditions ?? [], enabled: a.enabled ?? true };
       const { data, error } = a.id
         ? await supabase.from("automations").update(row).eq("id", a.id).select().single()
         : await supabase.from("automations").insert(row).select().single();

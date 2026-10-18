@@ -51,10 +51,15 @@ export type IntegrationStatus = {
   updated_at: string;
 };
 
-export type AutomationTrigger =
+export type AutomationRule =
   | { type: "time"; at: string; days: number[] }
+  | { type: "time_range"; from: string; until: string; days: number[] }
+  | ({ type: "weather" } & WeatherPredicate)
+  | { type: "sun"; event: "sunrise" | "sunset"; offset_minutes: number; days: number[] }
   | { type: "device"; device_id: string; key: string; op: "eq" | "ne" | "lt" | "gt"; value: unknown; option?: string }
   | { type: "event"; event: string; device_id?: string; pattern?: string; option?: string };
+
+export type AutomationTrigger = AutomationRule | { type: "logic"; groups: AutomationRule[][] };
 
 export type AutomationAction = {
   device_id: string;
@@ -74,7 +79,7 @@ export type Automation = {
   name: string;
   enabled: boolean;
   trigger: AutomationTrigger;
-  conditions: unknown[];
+  conditions: WeatherCondition[];
   actions: AutomationAction[];
   last_run_at: string | null;
   created_at: string;
@@ -108,3 +113,12 @@ export type FloorHeating = {
   heating: boolean;
   last_switch_at: string | null;
 };
+
+export type WeatherKey = "temperature" | "rain" | "precipitation" | "cloud_cover" | "wind_speed" | "is_day" | "rain_probability";
+export type WeatherPredicate = {
+  key: WeatherKey;
+  op: "eq" | "ne" | "lt" | "gt";
+  value: number | boolean;
+  option?: string;
+};
+export type WeatherCondition = WeatherPredicate & { type: "weather" };

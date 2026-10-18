@@ -3,6 +3,7 @@
 import { useState, useSyncExternalStore } from "react";
 import { DeviceSheet, DeviceTile } from "@/components/devices";
 import { Blob, Icon } from "@/components/icons";
+import { PiStatus } from "@/components/ui";
 import { CATEGORIES, displayState, isActive, lowBattery, num, ON_PI, type IconName } from "@/lib/devices";
 import { useHome } from "@/lib/home";
 import type { Device } from "@/lib/supabase";
@@ -133,7 +134,6 @@ export default function DevicesPage() {
   const lightsOn = devices.filter((d) => d.kind === "light" && d.online && displayState(d, commands).on).length;
   const temps = devices.filter((d) => d.kind === "zone").map((d) => num(d.state.temperature)).filter((t): t is number => t !== null);
   const avgTemp = temps.length ? temps.reduce((a, b) => a + b, 0) / temps.length : null;
-  const blindsOpen = devices.filter((d) => d.kind === "blind" && num(d.state.position) !== null && num(d.state.position)! < 100).length;
   const piDevices = devices.some((d) => ON_PI.includes(d.integration));
 
   const sections = CATEGORIES.map((c) => ({
@@ -150,6 +150,7 @@ export default function DevicesPage() {
             {greeting()}
             {userName ? `, ${userName.replace(/^./, (c) => c.toUpperCase())}` : ""}
           </span>
+          <PiStatus inline />
         </div>
         <h1 className="display">
           Here&apos;s your
@@ -165,16 +166,6 @@ export default function DevicesPage() {
         {avgTemp !== null && (
           <span className="chip tone-peach">
             <Icon name="thermo" size={16} /> {avgTemp.toFixed(1)}° inside
-          </span>
-        )}
-        {devices.some((d) => d.kind === "blind") && (
-          <span className="chip tone-lavender">
-            <Icon name="blind" size={16} /> {blindsOpen} open
-          </span>
-        )}
-        {piDevices && (
-          <span className={agentOnline ? "chip tone-sage" : "chip tone-red"}>
-            <span className="dot" /> Pi {agentOnline ? "online" : "offline"}
           </span>
         )}
       </div>
