@@ -1,39 +1,65 @@
 "use client";
 
-// Hold a card, then drag it to a new place: the card lifts and follows the
-// finger, the others slide out of the way, and letting go saves the order.
-// A quick tap still taps, and a swipe still scrolls the page.
+// Hold a card, then drag it to a new place in the grid. The grid's slots are
+// measured once when the card lifts; the card follows the finger, the slot
+// nearest to it becomes its target, and the other cards glide into their new
+// slots. Letting go settles the card into its slot and only then saves the
+// order. A quick tap still taps, and a swipe still scrolls the page.
+//
+// Everything during the drag is done straight on the elements (CSS translate,
+// which composes with a card's own tilt), so React doesn't re-render while
+// the finger moves.
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
-const HOLD_MS = 350;
+const HOLD_MS = 320;
 const MOVE_TOLERANCE = 8; // px a finger may wander before the hold counts as a scroll
+const GLIDE = "translate 240ms cubic-bezier(0.2, 0.9, 0.25, 1.15)";
+const SETTLE_MS = 220;
+
+type Slot = { x: number; y: number };
+
+// Inline styles set during a drag (outside React, so it doesn't re-render).
+const style = (el: HTMLElement, props: Partial<Pick<CSSStyleDeclaration, "transition" | "translate" | "scale" | "zIndex">>) =>
+  Object.assign(el.style, props);
 
 type Gesture = {
   id: string;
   pointerId: number;
   startX: number;
   startY: number;
-  timer: ReturnType<typeof setTimeout> | null;
-  active: boolean;
-  grabX: number; // where the card was grabbed, inside the card
-  grabY: number;
   lastX: number;
   lastY: number;
+  timer: ReturnType<typeof setTimeout> | null;
+  active: boolean;
+  order: string[]; // order when the card lifted
+  slots: Slot[]; // top-left of each slot, in that order
+  target: number; // slot the card would drop into
+  frame: number | null;
 };
 
 export function useHoldReorder<T extends { id: string }>(items: T[], save: (ids: string[]) => void) {
-  const [order, setOrder] = useState<string[] | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
-  const [lift, setLift] = useState({ x: 0, y: 0 });
   const gesture = useRef<Gesture | null>(null);
   const cards = useRef(new Map<string, HTMLElement>());
-  const rects = useRef(new Map<string, DOMRect>());
+  const clearAfterRender = useRef(false);
   const tapBlocked = useRef(false);
 
-  const ids = order ?? items.map((i) => i.id);
-  const byId = new Map(items.map((i) => [i.id, i]));
-  const shown = ids.map((id) => byId.get(id)).filter((x): x is T => Boolean(x));
+  const reset = useCallback(() => {
+    for (const el of cards.current.values()) {
+      style(el, { transition: "" });
+      style(el, { translate: "" });
+      style(el, { scale: "" });
+      style(el, { zIndex: "" });
+    }
+  }, []);
+
+  // The new order has rendered in place: drop the drag offsets before paint.
+  useLayoutEffect(() => {
+    if (!clearAfterRender.current) return;
+    clearAfterRender.current = false;
+    reset();
+  }, [items, reset]);
 
   // Stop the page from scrolling while a card is being dragged.
   useEffect(() => {
@@ -44,48 +70,86 @@ export function useHoldReorder<T extends { id: string }>(items: T[], save: (ids:
     return () => document.removeEventListener("touchmove", block);
   }, []);
 
-  // Where the lifted card sits: under the finger, relative to its own slot.
-  const follow = useCallback(() => {
-    const g = gesture.current;
-    const el = g && cards.current.get(g.id);
-    if (!g || !el) return;
-    const parent = (el.offsetParent as HTMLElement | null)?.getBoundingClientRect();
-    if (!parent) return;
-    setLift({ x: g.lastX - g.grabX - parent.left - el.offsetLeft, y: g.lastY - g.grabY - parent.top - el.offsetTop });
-  }, []);
+  const orderFor = (g: Gesture, target: number) => {
+    const list = g.order.filter((id) => id !== g.id);
+    list.splice(target, 0, g.id);
+    return list;
+  };
 
-  // Other cards glide to their new places (FLIP), and the lifted one stays under the finger.
-  useLayoutEffect(() => {
-    for (const [id, el] of cards.current) {
-      const before = rects.current.get(id);
-      const after = el.getBoundingClientRect();
-      if (before && id !== dragId && (before.left !== after.left || before.top !== after.top)) {
-        el.animate([{ translate: `${before.left - after.left}px ${before.top - after.top}px` }, { translate: "0 0" }], {
-          duration: 180,
-          easing: "ease-out",
-        });
+  // Move the lifted card with the finger, and the others to their slots.
+  const paint = useCallback(() => {
+    const g = gesture.current;
+    if (!g) return;
+    g.frame = null;
+    const from = g.order.indexOf(g.id);
+    const dx = g.lastX - g.startX;
+    const dy = g.lastY - g.startY;
+    const lifted = cards.current.get(g.id);
+    if (lifted) style(lifted, { translate: `${dx}px ${dy}px` });
+
+    // The nearest slot to where the card is now.
+    const here = { x: g.slots[from].x + dx, y: g.slots[from].y + dy };
+    let target = from;
+    let best = Infinity;
+    g.slots.forEach((s, i) => {
+      const d = Math.hypot(s.x - here.x, s.y - here.y);
+      if (d < best) {
+        best = d;
+        target = i;
       }
+    });
+    if (target === g.target) return;
+    g.target = target;
+    const next = orderFor(g, target);
+    for (const [id, el] of cards.current) {
+      if (id === g.id) continue;
+      const a = g.slots[g.order.indexOf(id)];
+      const b = g.slots[next.indexOf(id)];
+      if (!a || !b) continue;
+      style(el, { transition: GLIDE });
+      style(el, { translate: a === b ? "0px 0px" : `${b.x - a.x}px ${b.y - a.y}px` });
     }
-    rects.current.clear();
-    follow();
-  }, [order, dragId, follow]);
+  }, []);
 
   const end = useCallback(
     (commit: boolean) => {
       const g = gesture.current;
-      if (g?.timer) clearTimeout(g.timer);
       gesture.current = null;
-      if (g?.active) {
-        tapBlocked.current = true;
-        setTimeout(() => (tapBlocked.current = false), 50);
-        const final = order;
-        if (commit && final && final.join() !== items.map((i) => i.id).join()) save(final);
+      if (!g) return;
+      if (g.timer) clearTimeout(g.timer);
+      if (g.frame) cancelAnimationFrame(g.frame);
+      if (!g.active) return;
+
+      tapBlocked.current = true;
+      setTimeout(() => (tapBlocked.current = false), 80);
+      const from = g.order.indexOf(g.id);
+      const target = commit ? g.target : from;
+      const lifted = cards.current.get(g.id);
+
+      // Settle the card into its slot, then save (or just tidy up).
+      if (lifted) {
+        style(lifted, { transition: `translate ${SETTLE_MS}ms cubic-bezier(0.2, 0.9, 0.25, 1), scale ${SETTLE_MS}ms ease` });
+        style(lifted, { translate: `${g.slots[target].x - g.slots[from].x}px ${g.slots[target].y - g.slots[from].y}px` });
+        style(lifted, { scale: "1" });
       }
-      setDragId(null);
-      setOrder(null);
-      setLift({ x: 0, y: 0 });
+      if (!commit) {
+        for (const [id, el] of cards.current) {
+          if (id === g.id) continue;
+          style(el, { transition: GLIDE });
+          style(el, { translate: "0px 0px" });
+        }
+      }
+      setTimeout(() => {
+        setDragId(null);
+        if (target !== from) {
+          clearAfterRender.current = true;
+          save(orderFor(g, target));
+        } else {
+          reset();
+        }
+      }, SETTLE_MS);
     },
-    [items, order, save],
+    [reset, save],
   );
 
   const bind = (id: string) => ({
@@ -95,7 +159,7 @@ export function useHoldReorder<T extends { id: string }>(items: T[], save: (ids:
     },
     onPointerDown: (e: React.PointerEvent<HTMLElement>) => {
       if (gesture.current || (e.pointerType === "mouse" && e.button !== 0)) return;
-      const box = e.currentTarget.getBoundingClientRect();
+      const el = e.currentTarget;
       const g: Gesture = {
         id,
         pointerId: e.pointerId,
@@ -103,19 +167,29 @@ export function useHoldReorder<T extends { id: string }>(items: T[], save: (ids:
         startY: e.clientY,
         lastX: e.clientX,
         lastY: e.clientY,
-        grabX: e.clientX - box.left,
-        grabY: e.clientY - box.top,
-        active: false,
         timer: null,
+        active: false,
+        order: [],
+        slots: [],
+        target: 0,
+        frame: null,
       };
-      const el = e.currentTarget;
       g.timer = setTimeout(() => {
-        g.active = true;
         g.timer = null;
+        g.active = true;
+        g.order = items.map((i) => i.id);
+        // Slots are measured without any tilt, from the layout itself.
+        g.slots = g.order.map((cid) => {
+          const c = cards.current.get(cid);
+          return { x: c?.offsetLeft ?? 0, y: c?.offsetTop ?? 0 };
+        });
+        g.target = g.order.indexOf(id);
         try {
           el.setPointerCapture(g.pointerId);
         } catch {}
-        setOrder(items.map((i) => i.id));
+        style(el, { transition: "scale 160ms ease" });
+        style(el, { scale: "1.06" });
+        style(el, { zIndex: "5" });
         setDragId(id);
       }, HOLD_MS);
       gesture.current = g;
@@ -129,25 +203,7 @@ export function useHoldReorder<T extends { id: string }>(items: T[], save: (ids:
         if (Math.hypot(e.clientX - g.startX, e.clientY - g.startY) > MOVE_TOLERANCE) end(false);
         return;
       }
-      // Over another card? Take its place.
-      for (const [otherId, el] of cards.current) {
-        if (otherId === g.id) continue;
-        const r = el.getBoundingClientRect();
-        if (e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom) {
-          for (const [cid, cel] of cards.current) rects.current.set(cid, cel.getBoundingClientRect());
-          setOrder((prev) => {
-            const list = [...(prev ?? items.map((i) => i.id))];
-            const from = list.indexOf(g.id);
-            const to = list.indexOf(otherId);
-            if (from < 0 || to < 0 || from === to) return prev;
-            list.splice(from, 1);
-            list.splice(to, 0, g.id);
-            return list;
-          });
-          return;
-        }
-      }
-      follow();
+      if (!g.frame) g.frame = requestAnimationFrame(paint);
     },
     onPointerUp: () => end(true),
     onPointerCancel: () => end(false),
@@ -155,11 +211,8 @@ export function useHoldReorder<T extends { id: string }>(items: T[], save: (ids:
   });
 
   return {
-    items: shown,
     bind,
     dragId,
-    liftStyle: (id: string): React.CSSProperties | undefined =>
-      id === dragId ? { transform: `translate(${lift.x}px, ${lift.y}px) scale(1.06)`, zIndex: 5, transition: "none" } : undefined,
     // A tap that ended a drag shouldn't also play the scene.
     tapAllowed: () => !tapBlocked.current,
   };

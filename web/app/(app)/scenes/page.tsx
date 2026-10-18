@@ -50,7 +50,7 @@ export default function ScenesPage() {
       )}
 
       <div className="scene-grid">
-        {drag.items.map((s, i) => {
+        {scenes.map((s, i) => {
           const on = sceneIsOn(s, devices, commands);
           const playing = scenePlaying(s, commands);
           const count = s.actions.length;
@@ -58,7 +58,6 @@ export default function ScenesPage() {
             <article
               key={s.id}
               {...drag.bind(s.id)}
-              style={drag.liftStyle(s.id)}
               className={`scene-card tone-${s.tone}${on || playing ? ` on ${i % 2 ? "tilt-r" : "tilt-l"}` : ""}${drag.dragId === s.id ? " lifted" : ""}`}
               role="button"
               tabIndex={0}
