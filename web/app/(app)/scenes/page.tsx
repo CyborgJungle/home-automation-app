@@ -6,7 +6,7 @@ import { Icon, SceneArt } from "@/components/icons";
 import { PageHeader, Sheet, timeAgo } from "@/components/ui";
 import { useHome } from "@/lib/home";
 import { sceneIsOn, scenePlaying } from "@/lib/scenes";
-import { SCENE_SHAPES, type Device, type Scene, type SceneShape } from "@/lib/supabase";
+import { SCENE_SHAPES, type Scene, type SceneShape } from "@/lib/supabase";
 
 const TONES = ["yellow", "pink", "lavender", "sage", "peach", "mint", "sky"];
 
@@ -22,30 +22,9 @@ const emptyDraft = (i = 0): Draft => ({
 
 const toDraft = (s: Scene): Draft => ({ id: s.id, name: s.name, tone: s.tone, shape: s.shape, rows: toRows(s.actions), kind: s.kind });
 
-// Starting points, filled in with your own devices where possible.
-function ideas(devices: Device[]): Draft[] {
-  const find = (pred: (d: Device) => boolean) => devices.find(pred)?.id ?? "";
-  const living = find((d) => d.kind === "group" && /woon|living/i.test(d.name)) || find((d) => d.kind === "group");
-  const blind = find((d) => d.kind === "blind");
-  const tv = find((d) => d.kind === "tv");
-  const allGroups = devices.filter((d) => d.kind === "group").map((d) => d.id);
-  const row = (device_id: string, option: string, value: number | null = null): ActionRow => ({ device_id, option: device_id ? option : "", value });
-  const custom = "custom" as const;
-  return [
-    { name: "Turn everything off", tone: "lavender", shape: "cloud", rows: [], kind: "all_off" },
-    { name: "Movie night", tone: "pink", shape: "star", rows: [row(living, "brightness", 20), row(blind, "close"), ...(tv ? [row(tv, "on")] : [])], kind: custom },
-    { name: "Good morning", tone: "yellow", shape: "flower", rows: [row(blind, "open"), row(living, "brightness", 80)], kind: custom },
-    { name: "Good night", tone: "lavender", shape: "cloud", rows: allGroups.length ? allGroups.map((id) => row(id, "off")) : [row("", "")], kind: custom },
-    { name: "Dinner", tone: "peach", shape: "circle", rows: [row(living, "brightness", 55)], kind: custom },
-  ];
-}
-
 export default function ScenesPage() {
   const { scenes, devices, commands, playScene } = useHome();
   const [draft, setDraft] = useState<Draft | null>(null);
-  const existing = new Set(scenes.map((s) => s.name.toLowerCase()));
-  const hasAllOff = scenes.some((s) => s.kind === "all_off");
-  const suggestions = ideas(devices).filter((i) => !existing.has(i.name.toLowerCase()) && !(i.kind === "all_off" && hasAllOff));
 
   return (
     <main className="page">
@@ -117,19 +96,6 @@ export default function ScenesPage() {
           );
         })}
       </div>
-
-      {suggestions.length > 0 && (
-        <section className="section">
-          <h2 className="section-title">Ideas</h2>
-          <div className="chips">
-            {suggestions.map((i) => (
-              <button key={i.name} className={`chip tone-${i.tone}`} onClick={() => setDraft(i)}>
-                <Icon name="plus" size={16} /> {i.name}
-              </button>
-            ))}
-          </div>
-        </section>
-      )}
 
       {draft && <Editor initial={draft} onClose={() => setDraft(null)} />}
     </main>

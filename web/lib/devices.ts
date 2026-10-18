@@ -28,8 +28,8 @@ export const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) 
 export const ON_PI: Device["integration"][] = ["app", "dirigera", "tradfri", "eufy", "brel", "bravia", "sonos", "apple"];
 
 export const CATEGORIES: { id: string; title: string; kinds: string[]; tone: Tone }[] = [
-  { id: "climate", title: "Climate", kinds: ["zone", "heating"], tone: "peach" },
   { id: "lights", title: "Lights", kinds: ["group", "light"], tone: "yellow" },
+  { id: "climate", title: "Climate", kinds: ["zone", "heating"], tone: "peach" },
   { id: "blinds", title: "Blinds", kinds: ["blind"], tone: "lavender" },
   { id: "plugs", title: "Plugs", kinds: ["plug"], tone: "mint" },
   { id: "media", title: "Media", kinds: ["tv", "speaker"], tone: "pink" },

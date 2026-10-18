@@ -1,104 +1,25 @@
 "use client";
 
 import { useState } from "react";
-import { ActionRows, type ActionRow } from "@/components/actions";
+import { ActionRows } from "@/components/actions";
 import {
   AutomationRuleFields,
   categoryInfo,
 } from "@/components/automation-rule";
 import { Blob, Icon } from "@/components/icons";
-import { PageHeader, Sheet, Switch, timeAgo } from "@/components/ui";
-import { describeTrigger, summary } from "@/lib/automations";
+import { PageHeader, Sheet, Switch } from "@/components/ui";
+import { describeTrigger } from "@/lib/automations";
 import {
   build,
   emptyDraft,
   emptyRule,
   toDraft,
   type AutomationDraft,
-  type RuleDraft,
 } from "@/lib/automation-draft";
 import { useHome } from "@/lib/home";
-import type { Device } from "@/lib/supabase";
-
-function ideas(
-  devices: Device[],
-): { title: string; tone: string; draft: AutomationDraft }[] {
-  const find = (pred: (d: Device) => boolean) => devices.find(pred)?.id ?? "";
-  const blind = find((d) => d.kind === "blind");
-  const hall =
-    find((d) => d.kind === "light" && /gang|hal|hall/i.test(d.name)) ||
-    find((d) => d.kind === "light");
-  const living =
-    find((d) => d.kind === "group" && /woon|living/i.test(d.name)) ||
-    find((d) => d.kind === "group");
-  const tv = find((d) => d.kind === "tv");
-  const sensor = devices.find((d) => d.kind === "sensor" && typeof d.state.motion === "boolean");
-  const near = (sensor && find((d) => d.kind === "light" && d.room === sensor.room)) || hall;
-  const draft = (
-    name: string,
-    rule: Partial<RuleDraft>,
-    action: ActionRow,
-  ): AutomationDraft => ({
-    ...emptyDraft(),
-    name,
-    blocks: [{ join: "and", rule: { ...emptyRule(), ...rule } }],
-    actions: [action],
-  });
-  return [
-    ...(sensor
-      ? [
-          {
-            title: "Motion → light on, off 5 min after it stops",
-            tone: "sky",
-            draft: draft(
-              "Motion light",
-              { when: "device", device: sensor.id, option: "motion" },
-              { device_id: near, option: near ? "on_for" : "", value: 5 },
-            ),
-          },
-        ]
-      : []),
-    {
-      title: "30 min before sunset → living-room lights on",
-      tone: "yellow",
-      draft: draft(
-        "Evening lights",
-        { when: "sun", days: [0, 1, 2, 3, 4, 5, 6], sunOffset: -30 },
-        { device_id: living, option: living ? "on" : "", value: null },
-      ),
-    },
-    {
-      title: "Open the blinds on weekday mornings",
-      tone: "lavender",
-      draft: draft(
-        "Morning blinds",
-        {},
-        { device_id: blind, option: blind ? "open" : "", value: null },
-      ),
-    },
-    {
-      title: "Doorbell rings → hall light on",
-      tone: "sage",
-      draft: draft(
-        "Doorbell light",
-        { when: "event", option: "ring" },
-        { device_id: hall, option: hall ? "on" : "", value: null },
-      ),
-    },
-    {
-      title: "TV on → dim the living room",
-      tone: "pink",
-      draft: draft(
-        "Movie mode",
-        { when: "device", device: tv, option: tv ? "on" : "" },
-        { device_id: living, option: living ? "brightness" : "", value: 25 },
-      ),
-    },
-  ];
-}
 
 export default function AutomationsPage() {
-  const { automations, devices, scenes, setAutomationEnabled } = useHome();
+  const { automations, devices, setAutomationEnabled } = useHome();
   const [draft, setDraft] = useState<AutomationDraft | null>(null);
   return (
     <main className="page automation-page">
@@ -122,7 +43,6 @@ export default function AutomationsPage() {
       )}
       <div className="stack">
         {automations.map((a) => {
-          const { when, then } = summary(a, devices, scenes);
           const info = categoryInfo(toDraft(a, devices).blocks[0].rule);
           return (
             <article
@@ -135,43 +55,19 @@ export default function AutomationsPage() {
                 e.key === "Enter" && setDraft(toDraft(a, devices))
               }
             >
-              <div className="auto-top">
-                <span className="auto-icon">
-                  <Icon name={info.icon} size={18} />
-                </span>
-                <Switch
-                  on={a.enabled}
-                  label={`${a.name} on/off`}
-                  onChange={(on) => setAutomationEnabled(a.id, on)}
-                />
-              </div>
+              <span className="auto-icon">
+                <Icon name={info.icon} size={18} />
+              </span>
               <h3>{a.name}</h3>
-              <p className="auto-when">{when}</p>
-              <p className="auto-then">
-                <Icon name="chevron" size={14} stroke={3} /> {then}
-              </p>
-              <p className="auto-meta">Last ran {timeAgo(a.last_run_at)}</p>
+              <Switch
+                on={a.enabled}
+                label={`${a.name} on/off`}
+                onChange={(on) => setAutomationEnabled(a.id, on)}
+              />
             </article>
           );
         })}
       </div>
-      <section className="section">
-        <h2 className="section-title">Ideas</h2>
-        <div className="ideas">
-          {ideas(devices).map((idea) => (
-            <button
-              key={idea.title}
-              className={`idea tone-${idea.tone}`}
-              onClick={() => setDraft(idea.draft)}
-            >
-              <span>{idea.title}</span>
-              <span className="round small dark">
-                <Icon name="plus" size={16} />
-              </span>
-            </button>
-          ))}
-        </div>
-      </section>
       {draft && <Editor initial={draft} onClose={() => setDraft(null)} />}
     </main>
   );

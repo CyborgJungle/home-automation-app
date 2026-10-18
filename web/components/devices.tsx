@@ -284,7 +284,6 @@ function DeviceControls({ device: d }: { device: Device }) {
             </button>
           )}
           <ZoneInfo state={s} />
-          <p className="muted small">Honeywell updates every 5 minutes, so new temperatures can take a moment to show.</p>
         </>
       )}
 
@@ -297,10 +296,7 @@ function DeviceControls({ device: d }: { device: Device }) {
               </button>
             ))}
           </div>
-          <p className="muted small">
-            Current mode: {modeLabel(s.mode)}
-            {num(s.faults) ? ` · ${s.faults} fault(s) reported` : ""}
-          </p>
+          {num(s.faults) ? <p className="muted small">{String(s.faults)} fault(s) reported</p> : null}
         </>
       )}
 
@@ -360,7 +356,7 @@ function DeviceControls({ device: d }: { device: Device }) {
         </>
       )}
 
-      {d.kind === "speaker" && <SpeakerControls state={s} reachable={reachable} go={go} sonos={d.integration === "sonos"} />}
+      {d.kind === "speaker" && <SpeakerControls state={s} reachable={reachable} go={go} />}
 
       {(d.kind === "doorbell" || d.kind === "sensor" || d.kind === "remote") && (
         <div className="stat-row">
@@ -391,11 +387,7 @@ function DeviceControls({ device: d }: { device: Device }) {
         </div>
       )}
       {d.kind === "remote" && Array.isArray(s.controls) && <RemoteLinks ids={s.controls as string[]} />}
-      {(d.kind === "sensor" || d.kind === "remote") && d.integration === "tradfri" && (
-        <p className="muted small">The IKEA gateway only shares the battery level of sensors and remotes, not their button presses.</p>
-      )}
 
-      <p className="muted small">Updated {timeAgo(d.updated_at)}</p>
     </div>
   );
 }
@@ -514,9 +506,7 @@ function SpeakerControls({
   state: s,
   reachable,
   go,
-  sonos,
 }: {
-  sonos: boolean;
   state: Record<string, unknown>;
   reachable: boolean;
   go: (action: string, params?: Record<string, unknown>) => void;
@@ -565,9 +555,7 @@ function SpeakerControls({
             ))}
           </div>
         </>
-      ) : (
-        sonos && <p className="muted small">Add favourites in the Sonos app (heart a station or playlist) to start them here, in scenes and in automations.</p>
-      )}
+      ) : null}
     </>
   );
 }
@@ -674,7 +662,6 @@ function FloorControls({ state: s }: { state: Record<string, unknown> }) {
   if (!floor || !f) return null;
   const system = devices.find((d) => d.kind === "heating" && d.integration === "evohome");
   const systemOff = system?.state.mode === "HeatingOff";
-  const helper = devices.find((d) => d.id === floor.helper_zone);
   const step = (delta: number) => setFloor({ target: Math.min(25, Math.max(15, Number(floor.target) + delta)) });
 
   return (
@@ -715,11 +702,6 @@ function FloorControls({ state: s }: { state: Record<string, unknown> }) {
           </button>
         </div>
       )}
-      <p className="muted small">
-        Heats when the living room is below {Number(floor.target).toFixed(1)}° and stops at{" "}
-        {(Number(floor.target) + 0.5).toFixed(1)}°, by switching {helper?.name ?? "the helper zone"} between 30° and 5°.
-        Floor heating is slow: expect half an hour or more before you feel it.
-      </p>
     </>
   );
 }

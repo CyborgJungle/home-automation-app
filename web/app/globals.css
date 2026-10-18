@@ -1344,13 +1344,15 @@ button.chip.selected {
 
 .stack {
   display: grid;
-  gap: 12px;
+  gap: 8px;
 }
 
+/* One compact row per automation: icon, name, switch. Tap to open it. */
 .auto-card {
-  display: grid;
-  gap: 6px;
-  padding: 16px 16px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
   border-radius: var(--r-lg);
   background: var(--tone);
   cursor: pointer;
@@ -1373,17 +1375,23 @@ button.chip.selected {
 .auto-icon {
   display: grid;
   place-items: center;
-  width: 38px;
-  height: 38px;
+  flex: none;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   background: var(--paper);
 }
 
 .auto-card h3 {
-  font-size: 22px;
+  flex: 1;
+  min-width: 0;
+  font-size: 17px;
   font-weight: 800;
-  letter-spacing: -0.025em;
-  line-height: 1.1;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .auto-when {

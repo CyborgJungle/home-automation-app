@@ -226,8 +226,9 @@ export function Slider({
       }}
     >
       <span className="slider-fill" />
-      <span className="slider-label">{label}</span>
-      <span className="slider-value">{format(current)}</span>
+      {/* Colour bars speak for themselves: no text on them. */}
+      {!track && <span className="slider-label">{label}</span>}
+      {!track && <span className="slider-value">{format(current)}</span>}
     </div>
   );
 }
