@@ -4,6 +4,7 @@
 // device (or, in automations, a scene) and what it should do.
 
 import { Icon } from "@/components/icons";
+import { Slider } from "@/components/ui";
 import { ChipChoice, deviceGroups, Picker, sceneItem, type PickerGroup } from "@/components/picker";
 import { actionOptions, canAct, type NumberInput } from "@/lib/devices";
 import type { AutomationAction, Device, Scene } from "@/lib/supabase";
@@ -119,8 +120,14 @@ export function ActionRows({
                   onChange={(v) => update({ choice: v })}
                 />
               )}
-              {option?.number && option.numberLabel && <p className="muted small">{option.numberLabel}</p>}
-              {option?.number && <NumberField input={option.number} value={row.value} onChange={(v) => update({ value: v })} />}
+              {option?.number && (
+                <NumberField
+                  input={option.number}
+                  label={option.numberLabel ?? option.label}
+                  value={row.value}
+                  onChange={(v) => update({ value: v })}
+                />
+              )}
               {option?.offAfter && (
                 <p className="muted small">
                   Stays on while the trigger still holds, like ongoing motion, then turns off after this many minutes.
@@ -142,21 +149,20 @@ export function ActionRows({
   );
 }
 
-export function NumberField({ input, value, onChange }: { input: NumberInput; value: number | null; onChange: (v: number) => void }) {
+// A drag bar for numbers: slide or tap anywhere on it, easy with a thumb.
+// Offsets that can go negative show a "+" for positive values.
+export function NumberField({
+  input,
+  value,
+  onChange,
+  label = "Value",
+}: {
+  input: NumberInput;
+  value: number | null;
+  onChange: (v: number) => void;
+  label?: string;
+}) {
   const v = value ?? input.default;
-  const clamp = (n: number) => Math.min(input.max, Math.max(input.min, Math.round(n / input.step) * input.step));
-  return (
-    <div className="number-field">
-      <button className="round" aria-label="Less" onClick={() => onChange(clamp(v - input.step))}>
-        <Icon name="minus" size={16} />
-      </button>
-      <strong>
-        {v}
-        <small>{input.unit}</small>
-      </strong>
-      <button className="round" aria-label="More" onClick={() => onChange(clamp(v + input.step))}>
-        <Icon name="plus" size={16} />
-      </button>
-    </div>
-  );
+  const format = (n: number) => `${input.min < 0 && n > 0 ? "+" : ""}${n}${input.unit}`;
+  return <Slider label={label} value={v} min={input.min} max={input.max} step={input.step} format={format} onCommit={onChange} />;
 }

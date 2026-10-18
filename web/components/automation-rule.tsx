@@ -190,6 +190,7 @@ export function AutomationRuleFields({
           {rule.when === "device" && option?.number && (
             <NumberField
               input={option.number}
+              label={option.label.replace(/^./, (c) => c.toUpperCase())}
               value={rule.value}
               onChange={(value) => set({ value })}
             />
@@ -255,21 +256,22 @@ export function AutomationRuleFields({
           {rule.when === "weather" && weatherOption?.number && (
             <NumberField
               input={weatherOption.number}
+              label={weatherOption.label}
               value={rule.weatherValue}
               onChange={(weatherValue) => set({ weatherValue })}
             />
           )}
           {rule.when === "dark" && (
             <>
-              <p className="muted small">Starts, minutes from sunset</p>
               <NumberField
                 input={{ min: -180, max: 180, step: 5, default: 0, unit: " min" }}
+                label="Starts, from sunset"
                 value={rule.darkFrom}
                 onChange={(darkFrom) => set({ darkFrom })}
               />
-              <p className="muted small">Ends, minutes from sunrise</p>
               <NumberField
                 input={{ min: -180, max: 180, step: 5, default: 0, unit: " min" }}
+                label="Ends, from sunrise"
                 value={rule.darkUntil}
                 onChange={(darkUntil) => set({ darkUntil })}
               />
@@ -288,6 +290,7 @@ export function AutomationRuleFields({
                   default: 0,
                   unit: " min",
                 }}
+                label={`From ${rule.sunEvent}`}
                 value={rule.sunOffset}
                 onChange={(sunOffset) => set({ sunOffset })}
               />

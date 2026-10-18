@@ -1880,26 +1880,6 @@ button.chip.selected {
   min-width: 0;
 }
 
-.number-field {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 6px;
-  border-radius: 999px;
-  background: var(--field);
-  border: 1.5px solid var(--line);
-}
-
-.number-field strong {
-  font-size: 22px;
-  font-weight: 800;
-}
-
-.number-field small {
-  font-size: 14px;
-  margin-left: 2px;
-}
-
 .error {
   padding: 12px 14px;
   border-radius: var(--r-md);
