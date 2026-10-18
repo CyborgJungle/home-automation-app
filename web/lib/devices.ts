@@ -284,6 +284,17 @@ export type ActionOption = {
   number?: NumberInput;
   // Pick one from a (searchable) list, e.g. which app to open.
   choices?: { value: string; label: string }[];
+  // Automations only: switch the device off again after `number` minutes.
+  offAfter?: boolean;
+};
+
+const onFor: ActionOption = {
+  id: "on_for",
+  label: "Turn on for",
+  action: "set",
+  params: () => ({ on: true }),
+  number: { min: 1, max: 240, step: 1, unit: " min", default: 5 },
+  offAfter: true,
 };
 
 const listOf = (v: unknown) => (Array.isArray(v) ? (v as { id: string; name?: string; title?: string }[]) : []);
@@ -332,6 +343,7 @@ export function actionOptions(d: Device): ActionOption[] {
     case "group":
       return [
         fixed("on", "Turn on", "set", { on: true }),
+        onFor,
         fixed("off", "Turn off", "set", { on: false }),
         {
           id: "brightness",
@@ -343,7 +355,7 @@ export function actionOptions(d: Device): ActionOption[] {
         ...colourOptions(d),
       ];
     case "plug":
-      return [fixed("on", "Turn on", "set", { on: true }), fixed("off", "Turn off", "set", { on: false })];
+      return [fixed("on", "Turn on", "set", { on: true }), onFor, fixed("off", "Turn off", "set", { on: false })];
     case "blind":
       if (d.integration === "brel") {
         return [

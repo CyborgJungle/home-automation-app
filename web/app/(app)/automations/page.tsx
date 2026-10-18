@@ -32,6 +32,8 @@ function ideas(
     find((d) => d.kind === "group" && /woon|living/i.test(d.name)) ||
     find((d) => d.kind === "group");
   const tv = find((d) => d.kind === "tv");
+  const sensor = devices.find((d) => d.kind === "sensor" && typeof d.state.motion === "boolean");
+  const near = (sensor && find((d) => d.kind === "light" && d.room === sensor.room)) || hall;
   const draft = (
     name: string,
     rule: Partial<RuleDraft>,
@@ -43,6 +45,19 @@ function ideas(
     actions: [action],
   });
   return [
+    ...(sensor
+      ? [
+          {
+            title: "Motion → light on, off 5 min after it stops",
+            tone: "sky",
+            draft: draft(
+              "Motion light",
+              { when: "device", device: sensor.id, option: "motion" },
+              { device_id: near, option: near ? "on_for" : "", value: 5 },
+            ),
+          },
+        ]
+      : []),
     {
       title: "30 min before sunset → living-room lights on",
       tone: "yellow",
@@ -361,6 +376,7 @@ function Editor({
             onChange={(actions) => set({ actions })}
             devices={devices}
             scenes={scenes}
+            timed
           />
         </div>
         {error && (

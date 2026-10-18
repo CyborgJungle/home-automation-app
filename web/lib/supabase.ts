@@ -72,6 +72,8 @@ export type AutomationAction = {
   value?: number | null;
   // For options picked from a list, like an app or a Sonos favourite.
   choice?: string | null;
+  // Automations: switch the device off this many minutes after the trigger stops holding.
+  off_after_minutes?: number;
 };
 
 export type Automation = {

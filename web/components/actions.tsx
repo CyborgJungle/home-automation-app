@@ -39,7 +39,15 @@ export function buildActions(rows: ActionRow[], devices: Device[], scenes: Scene
     const value = option.number ? row.value ?? option.number.default : null;
     const choice = option.choices ? row.choice ?? null : null;
     if (option.choices && !choice) return `Pick which one for “${option.label}”.`;
-    actions.push({ device_id: device.id, action: option.action, params: option.params(value, choice), option: option.id, value, choice });
+    actions.push({
+      device_id: device.id,
+      action: option.action,
+      params: option.params(value, choice),
+      option: option.id,
+      value,
+      choice,
+      ...(option.offAfter && value !== null ? { off_after_minutes: value } : {}),
+    });
   }
   if (!actions.length) return "Add at least one action.";
   return actions;
@@ -50,11 +58,14 @@ export function ActionRows({
   onChange,
   devices,
   scenes,
+  timed = false,
 }: {
   rows: ActionRow[];
   onChange: (rows: ActionRow[]) => void;
   devices: Device[];
   scenes?: Scene[];
+  // Offer "Turn on for…" (automations only; a scene has nothing to count from).
+  timed?: boolean;
 }) {
   const groups: PickerGroup[] = [
     ...(scenes?.length ? [{ title: "Play a scene", items: scenes.map((sc) => sceneItem(sc, `${SCENE_PREFIX}${sc.id}`)) }] : []),
@@ -65,7 +76,7 @@ export function ActionRows({
     <>
       {rows.map((row, i) => {
         const device = devices.find((d) => d.id === row.device_id);
-        const options = device ? actionOptions(device) : [];
+        const options = device ? actionOptions(device).filter((o) => timed || !o.offAfter) : [];
         const option = options.find((o) => o.id === row.option);
         const update = (patch: Partial<ActionRow>) => onChange(rows.map((x, j) => (j === i ? { ...x, ...patch } : x)));
         return (
@@ -109,6 +120,11 @@ export function ActionRows({
                 />
               )}
               {option?.number && <NumberField input={option.number} value={row.value} onChange={(v) => update({ value: v })} />}
+              {option?.offAfter && (
+                <p className="muted small">
+                  Stays on while the trigger still holds, like ongoing motion, then turns off after this many minutes.
+                </p>
+              )}
             </div>
             {rows.length > 1 && (
               <button className="round small" aria-label="Remove action" onClick={() => onChange(rows.filter((_, j) => j !== i))}>
