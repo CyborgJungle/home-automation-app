@@ -15,20 +15,35 @@ const TABS: { href: string; label: string; icon: IconKey }[] = [
   { href: "/settings", label: "Settings", icon: "settings" },
 ];
 
-export function PiStatus({ inline = false }: { inline?: boolean }) {
-  const path = usePathname();
+// The thin top bar on every tab. It always takes the same height, even before
+// the Pi's status is known, so page titles never shift.
+export function PiStatus() {
   const { agent, agentOnline, devices } = useHome();
-  if (!inline && path === "/") return null;
-  if (!agent && !devices.some((d) => ON_PI.includes(d.integration))) return null;
-
-  const status = (
-    <span className={`pi-status${agentOnline ? "" : " offline"}`} role="status" aria-label={`Raspberry Pi ${agentOnline ? "online" : "offline"}`}>
-      <span className="pi-status-dot" aria-hidden="true" />
-      Pi {agentOnline ? "online" : "offline"}
-    </span>
+  const known = Boolean(agent) || devices.some((d) => ON_PI.includes(d.integration));
+  return (
+    <div className="app-status">
+      {known && (
+        <span className={`pi-status${agentOnline ? "" : " offline"}`} role="status" aria-label={`Raspberry Pi ${agentOnline ? "online" : "offline"}`}>
+          <span className="pi-status-dot" aria-hidden="true" />
+          Pi {agentOnline ? "online" : "offline"}
+        </span>
+      )}
+    </div>
   );
+}
 
-  return inline ? status : <div className="app-status">{status}</div>;
+// The same title block on every tab: title, one line of subtitle, and an
+// optional button centred beside them.
+export function PageHeader({ title, subtitle, action }: { title: string; subtitle: string; action?: React.ReactNode }) {
+  return (
+    <header className="page-head">
+      <div className="page-head-text">
+        <h1 className="display">{title}</h1>
+        <p className="muted subtitle">{subtitle}</p>
+      </div>
+      {action}
+    </header>
+  );
 }
 
 export function TabBar() {

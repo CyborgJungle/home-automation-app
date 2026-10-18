@@ -7,7 +7,7 @@ import {
   categoryInfo,
 } from "@/components/automation-rule";
 import { Blob, Icon } from "@/components/icons";
-import { Sheet, Switch, timeAgo } from "@/components/ui";
+import { PageHeader, Sheet, Switch, timeAgo } from "@/components/ui";
 import { describeTrigger, summary } from "@/lib/automations";
 import {
   build,
@@ -102,12 +102,15 @@ export default function AutomationsPage() {
   const [draft, setDraft] = useState<AutomationDraft | null>(null);
   return (
     <main className="page automation-page">
-      <header className="title-row">
-        <h1 className="display">Automations</h1>
-        <button className="pill" onClick={() => setDraft(emptyDraft())}>
-          <Icon name="plus" size={18} /> New
-        </button>
-      </header>
+      <PageHeader
+        title="Automations"
+        subtitle="Let your home run itself"
+        action={
+          <button className="pill" onClick={() => setDraft(emptyDraft())}>
+            <Icon name="plus" size={18} /> New
+          </button>
+        }
+      />
       {automations.length === 0 && (
         <div className="empty left">
           <Blob size={72} tone="var(--lavender)" look="right" />

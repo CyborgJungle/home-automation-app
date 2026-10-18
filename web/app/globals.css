@@ -278,6 +278,8 @@ p {
 .app-status {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
+  height: calc(var(--safe-top) + 26px);
   max-width: 560px;
   margin: 0 auto;
   padding: calc(var(--safe-top) + 10px) 18px 0;
@@ -312,7 +314,7 @@ p {
 .hello {
   display: grid;
   gap: 14px;
-  margin-bottom: 18px;
+  margin: 6px 0 18px;
 }
 
 .hello-row {
@@ -336,21 +338,29 @@ p {
   margin-left: auto;
 }
 
-.title-row .display {
+/* Every tab's title block: same size, same subtitle line, same spacing. */
+.page-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 6px 0 22px;
+}
+
+.page-head-text {
+  min-width: 0;
+}
+
+.page-head .display {
   font-size: clamp(32px, 9vw, 42px);
 }
 
-.title-row {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 12px;
-  margin: 10px 0 20px;
+.page-head .subtitle {
+  margin-top: 6px;
 }
 
 /* ----------------------------------------------------------- automations */
 
-.automation-page .title-row .display { font-size: clamp(28px, 8vw, 42px); }
 .segmented.automation-starts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .segmented.automation-starts button { min-width: 0; gap: 5px; padding: 10px 4px; font-size: 13px; white-space: nowrap; }
 .rule-flow { display: grid; gap: 12px; }
@@ -597,14 +607,21 @@ button.chip.selected {
   background: var(--paper);
 }
 
-/* Power icon: a faint ink ring says "tap me". Lamps have no fill, just the
-   bulb in the card's ink; when on, a ring of light dashes surrounds it. The
-   dashes burst in with a mascot-style boing and fold away with a blink. */
+/* Power icon. On: a cream puck with the bulb in ink, on the coloured card.
+   Off: a soft neutral circle with a dimmed bulb that blends into the dark
+   card (it follows the page's light/dark scheme instead of the pastel one).
+   Switching on, the bulb boings like the mascot and one ripple spreads out;
+   switching off, it blinks shut. */
 .power-icon {
   position: relative;
   cursor: pointer;
-  box-shadow: 0 0 0 1.5px color-mix(in srgb, currentColor 22%, transparent);
-  transition: transform 0.15s, box-shadow 0.2s, background 0.2s;
+  transition: transform 0.15s, background 0.2s, color 0.2s;
+}
+
+.power-icon:not(.lit) {
+  color-scheme: inherit;
+  color: var(--ink-2);
+  background: var(--subtle);
 }
 
 .power-icon:active {
@@ -613,46 +630,28 @@ button.chip.selected {
 
 .power-icon:disabled {
   cursor: default;
-  box-shadow: none;
 }
 
-.power-icon.rays {
-  background: transparent !important;
-  color: inherit !important;
-}
-
-.power-icon.rays::before {
+.power-icon::after {
   content: "";
   position: absolute;
   inset: 0;
-  background: currentColor;
-  -webkit-mask: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2034%2034'%3E%3Cpath%20d='M23.0%2017.6L25.5%2018.8M23.1%2012.3L25.7%2011.3M20.1%209.0L21.4%206.5M17.0%208.2L17.0%205.4M13.9%209.0L12.6%206.5M10.9%2012.3L8.3%2011.3M11.0%2017.6L8.5%2018.8'%20stroke='black'%20stroke-width='1.9'%20stroke-linecap='round'%20fill='none'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
-  mask: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2034%2034'%3E%3Cpath%20d='M23.0%2017.6L25.5%2018.8M23.1%2012.3L25.7%2011.3M20.1%209.0L21.4%206.5M17.0%208.2L17.0%205.4M13.9%209.0L12.6%206.5M10.9%2012.3L8.3%2011.3M11.0%2017.6L8.5%2018.8'%20stroke='black'%20stroke-width='1.9'%20stroke-linecap='round'%20fill='none'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
-  transform-origin: 50% 44%;
+  border-radius: 50%;
+  border: 2px solid var(--ink);
   opacity: 0;
-  transform: scale(0.6);
   pointer-events: none;
-}
-
-.power-icon.rays.lit::before {
-  opacity: 1;
-  transform: none;
 }
 
 .power-icon.turn-on {
   animation: power-boing 0.55s cubic-bezier(0.3, 1.5, 0.5, 1);
 }
 
-.power-icon.rays.turn-on::before {
-  animation: rays-in 0.55s cubic-bezier(0.3, 1.6, 0.5, 1);
+.power-icon.turn-on::after {
+  animation: power-ripple 0.6s ease-out;
 }
 
 .power-icon.turn-off {
   animation: power-blink 0.38s ease-in-out;
-}
-
-.power-icon.rays.turn-off::before {
-  animation: rays-out 0.32s ease-in;
 }
 
 @keyframes power-boing {
@@ -662,20 +661,14 @@ button.chip.selected {
   100% { transform: scale(1); }
 }
 
+@keyframes power-ripple {
+  from { opacity: 0.45; transform: scale(1); }
+  to { opacity: 0; transform: scale(1.7); }
+}
+
 @keyframes power-blink {
   0%, 100% { transform: scale(1); }
   45% { transform: scale(1.08, 0.72) translateY(2px); }
-}
-
-@keyframes rays-in {
-  0% { opacity: 0; transform: scale(0.5) rotate(-25deg); }
-  55% { opacity: 1; transform: scale(1.18) rotate(4deg); }
-  100% { opacity: 1; transform: none; }
-}
-
-@keyframes rays-out {
-  0% { opacity: 1; transform: none; }
-  100% { opacity: 0; transform: scale(0.55) rotate(18deg); }
 }
 
 .lamp-row-icon {
@@ -686,6 +679,13 @@ button.chip.selected {
   flex: none;
   border-radius: 50%;
   background: var(--subtle);
+}
+
+/* In the plain lamp list there's no coloured card, so a lit lamp is yellow. */
+.lamp-row-icon.lit {
+  color-scheme: light;
+  color: var(--ink);
+  background: var(--yellow);
 }
 
 

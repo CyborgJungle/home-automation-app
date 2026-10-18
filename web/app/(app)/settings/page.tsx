@@ -2,7 +2,7 @@
 
 import { INTEGRATION_NAMES } from "@/components/devices";
 import { Blob, Icon } from "@/components/icons";
-import { Switch, timeAgo } from "@/components/ui";
+import { PageHeader, Switch, timeAgo } from "@/components/ui";
 import { useHome } from "@/lib/home";
 import type { Device } from "@/lib/supabase";
 import { useTheme } from "@/lib/theme";
@@ -94,9 +94,7 @@ export default function SettingsPage() {
 
   return (
     <main className="page">
-      <header className="title-row">
-        <h1 className="display">Settings</h1>
-      </header>
+      <PageHeader title="Settings" subtitle="Your Pi, looks and connections" />
 
       <section className="section">
         <div className={`hero-card ${agentOnline ? "tone-sage" : "tone-peach"}`}>

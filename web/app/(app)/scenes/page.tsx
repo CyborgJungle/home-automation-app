@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ActionRows, buildActions, emptyRow, toRows, type ActionRow } from "@/components/actions";
 import { Icon, SceneArt } from "@/components/icons";
-import { Sheet, timeAgo } from "@/components/ui";
+import { PageHeader, Sheet, timeAgo } from "@/components/ui";
 import { useHome } from "@/lib/home";
 import { sceneIsOn, scenePlaying } from "@/lib/scenes";
 import { SCENE_SHAPES, type Device, type Scene, type SceneShape } from "@/lib/supabase";
@@ -49,15 +49,15 @@ export default function ScenesPage() {
 
   return (
     <main className="page">
-      <header className="title-row">
-        <div>
-          <h1 className="display">Scenes</h1>
-          <p className="muted subtitle">Tap a scene to set the mood</p>
-        </div>
-        <button className="pill" onClick={() => setDraft(emptyDraft(scenes.length))}>
-          <Icon name="plus" size={18} /> New
-        </button>
-      </header>
+      <PageHeader
+        title="Scenes"
+        subtitle="Tap a scene to set the mood"
+        action={
+          <button className="pill" onClick={() => setDraft(emptyDraft(scenes.length))}>
+            <Icon name="plus" size={18} /> New
+          </button>
+        }
+      />
 
       {scenes.length === 0 && (
         <div className="scene-empty">

@@ -70,9 +70,7 @@ export function PowerIcon({
   return (
     <button
       type="button"
-      className={[className, "power-icon", (icon === "bulb" || icon === "group") && "rays", on && "lit", anim && `turn-${anim}`]
-        .filter(Boolean)
-        .join(" ")}
+      className={[className, "power-icon", on && "lit", anim && `turn-${anim}`].filter(Boolean).join(" ")}
       style={style}
       aria-pressed={on}
       aria-label={`${label}: turn ${on ? "off" : "on"}`}
@@ -116,7 +114,7 @@ export function DeviceTile({ device, onOpen, icon, tone }: { device: Device; onO
         {power ? (
           <PowerIcon
             className="tile-icon"
-            on={Boolean(state.on)}
+            on={reachable && Boolean(state.on)}
             icon={icon ?? iconOf(device)}
             size={18}
             label={device.name}
