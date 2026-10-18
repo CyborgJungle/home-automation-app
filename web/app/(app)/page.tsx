@@ -70,18 +70,6 @@ function parseOpen(raw: string): string[] {
 
 const ROOM_ORDER = ["Living room", "Bedroom", "Office", "Hallway", "Bathroom", "Studio", "Guest room"];
 
-// Lamp names start with their room ("Woonkamer cupcake"); under the room
-// heading that's repeated, so the tile shows just "Cupcake". A name that is
-// only the room ("Kantoor") stays as it is.
-const ROOM_WORDS = ["woonkamer", "slaapkamer", "gang", "hal", "badkamer", "kantoor", "studio", "logeerkamer", "keuken", "zolder", "living", "bedroom", "hallway", "bathroom", "office", "kitchen"];
-function shortName(name: string, room: string) {
-  const [first, ...rest] = name.split(/\s+/);
-  const roomWords = room.toLowerCase().split(/\s+/);
-  if (!rest.length || !(ROOM_WORDS.includes(first.toLowerCase()) || roomWords.includes(first.toLowerCase()))) return name;
-  const short = rest.join(" ");
-  return short.charAt(0).toUpperCase() + short.slice(1);
-}
-
 // Lights by room: single lamps, lamp groups made in the app (whose lamps are
 // then only shown inside the group), and plugs that have a lamp on them.
 // Hub room groups aren't shown. Lamps that aren't in a room go under "Other".
@@ -240,7 +228,7 @@ export default function DevicesPage() {
                         </h3>
                         <div className="grid">
                           {r.lights.map((d) => (
-                            <DeviceTile key={d.id} device={d} title={shortName(d.name, r.name)} icon={d.also_light ? "bulb" : undefined} tone={d.also_light ? "yellow" : undefined} onOpen={() => setOpenId(d.id)} />
+                            <DeviceTile key={d.id} device={d} icon={d.also_light ? "bulb" : undefined} tone={d.also_light ? "yellow" : undefined} onOpen={() => setOpenId(d.id)} />
                           ))}
                         </div>
                       </div>
