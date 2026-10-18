@@ -251,23 +251,22 @@ export function createDirigera(cfg, hub, log) {
     return a;
   }
 
-  // Sends only what the lamp understands, one step at a time: the hub rejects
-  // some combinations, and brightness or colour only stick on a lamp that's on.
+  // Sends only what the lamp understands. Brightness and colour go in one
+  // request: sent separately, the second cuts the first one's fade short and
+  // the lamp stops halfway. A lamp that's off is switched on first.
   async function patch(d, attributes) {
     const send = (attrs) => api('PATCH', `/devices/${d.id}`, [{ attributes: attrs }]);
     const { isOn, lightLevel, colorHue, colorSaturation, colorTemperature, ...rest } = attributes;
-    if (isOn === true) await send({ isOn });
-    // Once it's on, brightness and colour can go together.
-    const steps = [];
-    if (lightLevel != null && can(d, 'lightLevel')) steps.push(send({ lightLevel }));
-    if ((colorHue != null || colorSaturation != null) && can(d, 'colorHue')) {
-      steps.push(send({ ...(colorHue != null ? { colorHue } : {}), ...(colorSaturation != null ? { colorSaturation } : {}) }));
-    }
+    if (isOn === true && !d.attributes?.isOn) await send({ isOn });
+    const look = {};
+    if (lightLevel != null && can(d, 'lightLevel')) look.lightLevel = lightLevel;
+    if (colorHue != null && can(d, 'colorHue')) look.colorHue = colorHue;
+    if (colorSaturation != null && can(d, 'colorHue')) look.colorSaturation = colorSaturation;
     if (colorTemperature != null && can(d, 'colorTemperature')) {
       const { kelvin_warm: warm, kelvin_cool: cool } = whiteRange(d.attributes ?? {});
-      steps.push(send({ colorTemperature: warm ? Math.max(warm, Math.min(cool, colorTemperature)) : colorTemperature }));
+      look.colorTemperature = warm ? Math.max(warm, Math.min(cool, colorTemperature)) : colorTemperature;
     }
-    await Promise.all(steps);
+    if (Object.keys(look).length) await send(look);
     if (isOn === false) await send({ isOn });
     if (Object.keys(rest).length) await send(rest);
     refreshSoon(d.id);
