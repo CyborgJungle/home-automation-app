@@ -89,8 +89,21 @@ export function PowerIcon({
   );
 }
 
-// `icon` and `tone` replace the device's own, e.g. for a lamp on a plug under Lights.
-export function DeviceTile({ device, onOpen, icon, tone }: { device: Device; onOpen: () => void; icon?: IconName; tone?: Tone }) {
+// `title`, `icon` and `tone` replace the device's own, e.g. a short name under
+// its room heading, or a bulb for a lamp on a plug under Lights.
+export function DeviceTile({
+  device,
+  onOpen,
+  title,
+  icon,
+  tone,
+}: {
+  device: Device;
+  onOpen: () => void;
+  title?: string;
+  icon?: IconName;
+  tone?: Tone;
+}) {
   const { state, busy, reachable, send } = useDevice(device);
   const power = hasPower(device);
   const tap = reachable && !power ? tapAction(device, state) : null;
@@ -150,7 +163,7 @@ export function DeviceTile({ device, onOpen, icon, tone }: { device: Device; onO
           </button>
         )}
       </div>
-      <div className="tile-name">{device.name}</div>
+      <div className="tile-name">{title ?? device.name}</div>
     </div>
   );
 }
