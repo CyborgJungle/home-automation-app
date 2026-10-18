@@ -173,14 +173,15 @@ export function DeviceSheet({ device, onClose }: { device: Device | null; onClos
 }
 
 function DeviceControls({ device: d }: { device: Device }) {
-  const { state: s, busy, reachable, send } = useDevice(d);
+  const { state: s, reachable, send } = useDevice(d);
   const [setpoint, setSetpoint] = useState<number | null>(null);
   const go = (action: string, params: Record<string, unknown> = {}) => send(d, action, params);
   const position = num(s.position);
 
   return (
     <div className="controls">
-      <div className="control-hero">
+      {/* Lamps and plugs: a dark card when off, their colour when on, like the tiles. */}
+      <div className={hasPower(d) && !(reachable && s.on) ? "control-hero dim" : "control-hero"}>
         {hasPower(d) ? (
           <PowerIcon
             className="hero-icon"
@@ -201,7 +202,6 @@ function DeviceControls({ device: d }: { device: Device }) {
           <div className="hero-state">{reachable ? describe(d, s) : offlineLabel(d)}</div>
           <div className="muted">
             {[d.room !== d.name ? d.room : null, INTEGRATION_NAMES[d.integration]].filter(Boolean).join(" · ")}
-            {busy && " · sending…"}
           </div>
         </div>
       </div>
@@ -391,11 +391,26 @@ function DeviceControls({ device: d }: { device: Device }) {
           )}
         </div>
       )}
+      {d.kind === "remote" && Array.isArray(s.controls) && <RemoteLinks ids={s.controls as string[]} />}
       {(d.kind === "sensor" || d.kind === "remote") && d.integration === "tradfri" && (
         <p className="muted small">The IKEA gateway only shares the battery level of sensors and remotes, not their button presses.</p>
       )}
 
       <p className="muted small">Updated {timeAgo(d.updated_at)}</p>
+    </div>
+  );
+}
+
+// Lamps a remote switches by itself, through the hub (no app or Pi involved).
+function RemoteLinks({ ids }: { ids: string[] }) {
+  const { devices } = useHome();
+  const names = ids.map((id) => devices.find((d) => d.id === id)?.name).filter(Boolean);
+  return (
+    <div className="row-card">
+      <span className="grow">
+        <span className="muted small sub">Switches directly, even without the Pi</span>
+        <strong>{names.join(", ") || "–"}</strong>
+      </span>
     </div>
   );
 }

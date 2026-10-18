@@ -80,6 +80,9 @@ export function createDirigera(cfg, hub, log) {
       if (batteryOf(a) != null) state.battery = batteryOf(a);
       const press = lastPress.get(d.id);
       if (press) Object.assign(state, press);
+      // Lamps this remote switches by itself (the hub stores the link on each lamp).
+      const controls = [...devices.values()].filter((l) => l.remoteLinks?.includes(d.id)).map(idOf);
+      if (controls.length) state.controls = controls;
     }
     return {
       id: idOf(d),
@@ -153,6 +156,10 @@ export function createDirigera(cfg, hub, log) {
       if (data.isReachable != null) d.isReachable = data.isReachable;
       if (data.room) d.room = data.room;
       publish(d);
+      if (data.remoteLinks) {
+        d.remoteLinks = data.remoteLinks;
+        for (const r of devices.values()) if (KIND_BY_TYPE[r.deviceType] === 'remote') publish(r);
+      }
     } else if (event.type === 'remotePressEvent') {
       const now = Date.now();
       if (now - (lastPress.get(data.id)?.at ?? 0) < BUTTON_DEDUPE_MS) return;

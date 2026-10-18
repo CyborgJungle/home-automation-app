@@ -1062,8 +1062,20 @@ button.chip.selected {
   align-items: center;
   gap: 14px;
   padding: 16px;
+  border: 1.5px solid transparent;
   border-radius: var(--r-lg);
   background: var(--sheet-tone, var(--sand));
+  transition: background 0.25s, border-color 0.25s;
+}
+
+.control-hero.dim {
+  background: var(--paper);
+  border-color: var(--line);
+  color-scheme: inherit;
+}
+
+.control-hero.dim .hero-icon {
+  background: var(--subtle);
 }
 
 .hero-icon {
