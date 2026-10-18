@@ -17,9 +17,11 @@ const TABS: { href: string; label: string; icon: IconKey }[] = [
 
 // The thin top bar on every tab. It always takes the same height, even before
 // the Pi's status is known, so page titles never shift.
+// Home leaves it out (the bar still takes its space, so pages line up).
 export function PiStatus() {
+  const path = usePathname();
   const { agent, agentOnline, devices } = useHome();
-  const known = Boolean(agent) || devices.some((d) => ON_PI.includes(d.integration));
+  const known = path !== "/" && (Boolean(agent) || devices.some((d) => ON_PI.includes(d.integration)));
   return (
     <div className="app-status">
       {known && (
