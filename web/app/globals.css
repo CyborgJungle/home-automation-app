@@ -555,7 +555,7 @@ button.chip.selected {
   position: relative;
   display: flex;
   flex-direction: column;
-  height: 88px;
+  height: 94px;
   padding: 9px 11px;
   border-radius: var(--r-lg);
   background: var(--paper);
@@ -618,6 +618,7 @@ button.chip.selected {
 
 .power-icon.rays {
   background: transparent !important;
+  color: inherit !important;
 }
 
 .power-icon.rays::before {
