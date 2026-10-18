@@ -15,7 +15,10 @@ import {
   modeLabel,
   num,
   ON_PI,
+  type IconName,
   tapAction,
+  hasPower,
+  membersOf,
   toneOf,
 } from "@/lib/devices";
 import { useHome } from "@/lib/home";
@@ -23,6 +26,7 @@ import type { Device } from "@/lib/supabase";
 import { colorCss, HUE_TRACK, hueName, LAMP_COLORS, lampCss, selectedColor, whiteName, whiteTrack } from "@/lib/colors";
 
 export const INTEGRATION_NAMES: Record<Device["integration"], string> = {
+  app: "Lamp group",
   dirigera: "IKEA DIRIGERA",
   tradfri: "IKEA TRÅDFRI",
   evohome: "Honeywell evohome",
@@ -41,10 +45,54 @@ function useDevice(d: Device) {
   return { state, busy, reachable, send };
 }
 
-// `title` replaces the device name, e.g. "All lights" for a room's group under its room heading.
-export function DeviceTile({ device, onOpen, title }: { device: Device; onOpen: () => void; title?: string }) {
+// The lamp icon is the power button: it pops and sparkles on, and dims off.
+export function PowerIcon({
+  on,
+  icon,
+  size,
+  label,
+  disabled,
+  onToggle,
+  className,
+  style,
+}: {
+  on: boolean;
+  icon: IconName;
+  size: number;
+  label: string;
+  disabled?: boolean;
+  onToggle: () => void;
+  className: string;
+  style?: React.CSSProperties;
+}) {
+  const [anim, setAnim] = useState<"on" | "off" | null>(null);
+  return (
+    <button
+      type="button"
+      className={[className, "power-icon", on && "lit", anim && `turn-${anim}`].filter(Boolean).join(" ")}
+      style={style}
+      aria-pressed={on}
+      aria-label={`${label}: turn ${on ? "off" : "on"}`}
+      disabled={disabled}
+      onClick={(e) => {
+        e.stopPropagation();
+        setAnim(on ? "off" : "on");
+        onToggle();
+      }}
+      onAnimationEnd={(e) => {
+        if (e.animationName === "power-pop" || e.animationName === "power-dim") setAnim(null);
+      }}
+    >
+      <Icon name={icon} size={size} />
+    </button>
+  );
+}
+
+// `icon` replaces the device's own icon, e.g. a bulb for a lamp on a plug.
+export function DeviceTile({ device, onOpen, icon }: { device: Device; onOpen: () => void; icon?: IconName }) {
   const { state, busy, reachable, send } = useDevice(device);
-  const tap = reachable ? tapAction(device, state) : null;
+  const power = hasPower(device);
+  const tap = reachable && !power ? tapAction(device, state) : null;
   const active = reachable && isActive(device, state);
   const temp = device.kind === "zone" ? num(state.temperature) : null;
 
@@ -62,9 +110,21 @@ export function DeviceTile({ device, onOpen, title }: { device: Device; onOpen: 
       }}
     >
       <div className="tile-top">
-        <span className="tile-icon">
-          <Icon name={iconOf(device)} size={20} />
-        </span>
+        {power ? (
+          <PowerIcon
+            className="tile-icon"
+            on={Boolean(state.on)}
+            icon={icon ?? iconOf(device)}
+            size={18}
+            label={device.name}
+            disabled={!reachable}
+            onToggle={() => send(device, "set", { on: !state.on })}
+          />
+        ) : (
+          <span className="tile-icon">
+            <Icon name={icon ?? iconOf(device)} size={18} />
+          </span>
+        )}
         {device.kind === "zone" && (
           <span className="tile-value">
             {temp !== null ? temp.toFixed(1) : "–"}
@@ -72,22 +132,24 @@ export function DeviceTile({ device, onOpen, title }: { device: Device; onOpen: 
           </span>
         )}
         {device.kind === "heating" && <span className="tile-value">{modeLabel(state.mode)}</span>}
+        <span className={lowBattery(state) ? "tile-state warn" : "tile-state"}>
+          {reachable ? describe(device, state) : offlineLabel(device)}
+        </span>
         {busy && <span className="spinner" aria-label="Sending" />}
-        <button
-          className="tile-more"
-          aria-label={`${device.name} details`}
-          onClick={(e) => {
-            e.stopPropagation();
-            onOpen();
-          }}
-        >
-          <Icon name="chevron" size={16} stroke={2.6} />
-        </button>
+        {tap && (
+          <button
+            className="tile-more"
+            aria-label={`${device.name} details`}
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpen();
+            }}
+          >
+            <Icon name="chevron" size={14} stroke={2.6} />
+          </button>
+        )}
       </div>
-      <div className="tile-name">{title ?? device.name}</div>
-      <div className={lowBattery(state) ? "tile-state warn" : "tile-state"}>
-        {reachable ? describe(device, state) : offlineLabel(device)}
-      </div>
+      <div className="tile-name">{device.name}</div>
     </div>
   );
 }
@@ -118,9 +180,22 @@ function DeviceControls({ device: d }: { device: Device }) {
   return (
     <div className="controls">
       <div className="control-hero">
-        <span className="hero-icon" style={lampCss(s) ? { background: lampCss(s)! } : undefined}>
-          <Icon name={iconOf(d)} size={28} />
-        </span>
+        {hasPower(d) ? (
+          <PowerIcon
+            className="hero-icon"
+            style={lampCss(s) ? { background: lampCss(s)! } : undefined}
+            on={Boolean(s.on)}
+            icon={d.also_light ? "bulb" : iconOf(d)}
+            size={28}
+            label={d.name}
+            disabled={!reachable}
+            onToggle={() => go("set", { on: !s.on })}
+          />
+        ) : (
+          <span className="hero-icon">
+            <Icon name={iconOf(d)} size={28} />
+          </span>
+        )}
         <div>
           <div className="hero-state">{reachable ? describe(d, s) : offlineLabel(d)}</div>
           <div className="muted">
@@ -132,10 +207,6 @@ function DeviceControls({ device: d }: { device: Device }) {
 
       {(d.kind === "light" || d.kind === "group" || d.kind === "plug") && (
         <>
-          <div className="row-card">
-            <span className="grow">{d.kind === "group" ? `All ${s.lights ?? ""} lights` : "Power"}</span>
-            <Switch on={Boolean(s.on)} label="Power" disabled={!reachable} onChange={(on) => go("set", { on })} />
-          </div>
           {d.kind !== "plug" && (num(s.brightness) !== null || d.kind === "group") && (
             <Slider
               label="Brightness"
@@ -148,6 +219,7 @@ function DeviceControls({ device: d }: { device: Device }) {
             />
           )}
           {d.kind !== "plug" && <LampColour state={s} reachable={reachable} go={go} />}
+          {membersOf(d).length > 0 && <GroupLamps ids={membersOf(d)} />}
         </>
       )}
 
@@ -323,6 +395,40 @@ function DeviceControls({ device: d }: { device: Device }) {
       )}
 
       <p className="muted small">Updated {timeAgo(d.updated_at)}</p>
+    </div>
+  );
+}
+
+// The lamps in an app group, each with its own power button.
+function GroupLamps({ ids }: { ids: string[] }) {
+  const { devices } = useHome();
+  const lamps = ids.map((id) => devices.find((d) => d.id === id)).filter((d): d is Device => Boolean(d));
+  return (
+    <div className="list-card">
+      {lamps.map((l) => (
+        <GroupLamp key={l.id} lamp={l} />
+      ))}
+    </div>
+  );
+}
+
+function GroupLamp({ lamp }: { lamp: Device }) {
+  const { state, reachable, send } = useDevice(lamp);
+  return (
+    <div className="list-row">
+      <PowerIcon
+        className="lamp-row-icon"
+        on={Boolean(state.on)}
+        icon="bulb"
+        size={17}
+        label={lamp.name}
+        disabled={!reachable}
+        onToggle={() => send(lamp, "set", { on: !state.on })}
+      />
+      <span className="grow">
+        <strong>{lamp.name}</strong>
+        <span className="muted small sub">{reachable ? describe(lamp, state) : offlineLabel(lamp)}</span>
+      </span>
     </div>
   );
 }

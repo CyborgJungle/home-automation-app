@@ -4,7 +4,7 @@ import { useState, useSyncExternalStore } from "react";
 import { DeviceSheet, DeviceTile } from "@/components/devices";
 import { Blob, Icon } from "@/components/icons";
 import { PiStatus } from "@/components/ui";
-import { CATEGORIES, displayState, isActive, lowBattery, num, ON_PI, type IconName } from "@/lib/devices";
+import { CATEGORIES, displayState, isActive, lowBattery, membersOf, num, ON_PI, type IconName } from "@/lib/devices";
 import { useHome } from "@/lib/home";
 import type { Device } from "@/lib/supabase";
 
@@ -69,12 +69,15 @@ function parseOpen(raw: string): string[] {
   }
 }
 
-// Lights by room, as single lamps (no "all lights" card per room).
-// Lamps that aren't in a room go under "Other".
+// Lights by room: single lamps, lamp groups made in the app (whose lamps are
+// then only shown inside the group), and plugs that have a lamp on them.
+// Hub room groups aren't shown. Lamps that aren't in a room go under "Other".
 function lightsByRoom(list: Device[]) {
+  const grouped = new Set(list.flatMap(membersOf));
   const rooms = new Map<string, Device[]>();
   for (const d of list) {
-    if (d.kind !== "light") continue;
+    const shown = (d.kind === "light" && !grouped.has(d.id)) || membersOf(d).length > 0 || d.also_light;
+    if (!shown) continue;
     const name = d.room ?? "Other";
     rooms.set(name, [...(rooms.get(name) ?? []), d]);
   }
@@ -133,7 +136,8 @@ export default function DevicesPage() {
 
   const sections = CATEGORIES.map((c) => ({
     ...c,
-    devices: devices.filter((d) => c.kinds.includes(d.kind)).sort(byKindThenName),
+    // Plugs with a lamp on them show under Lights too.
+    devices: devices.filter((d) => c.kinds.includes(d.kind) || (c.id === "lights" && d.also_light)).sort(byKindThenName),
   })).filter((c) => c.devices.length > 0);
 
   return (
@@ -199,7 +203,7 @@ export default function DevicesPage() {
                 <span className="group-text">
                   <strong>
                     {s.title}{" "}
-                    <span className="count">{s.id === "lights" ? s.devices.filter((d) => d.kind === "light").length : s.devices.length}</span>
+                    <span className="count">{s.id === "lights" ? lightsByRoom(s.devices).reduce((n, r) => n + r.lights.length, 0) : s.devices.length}</span>
                   </strong>
                   <span className={warn ? "warn" : undefined}>{sectionSummary(s.id, s.devices, commands)}</span>
                 </span>
@@ -219,7 +223,7 @@ export default function DevicesPage() {
                         </h3>
                         <div className="grid">
                           {r.lights.map((d) => (
-                            <DeviceTile key={d.id} device={d} onOpen={() => setOpenId(d.id)} />
+                            <DeviceTile key={d.id} device={d} icon={d.also_light ? "bulb" : undefined} onOpen={() => setOpenId(d.id)} />
                           ))}
                         </div>
                       </div>

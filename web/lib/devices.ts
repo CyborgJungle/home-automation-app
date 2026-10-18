@@ -25,13 +25,13 @@ type State = Record<string, unknown>;
 export const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
 
 // Integrations that need the Raspberry Pi to be online.
-export const ON_PI: Device["integration"][] = ["dirigera", "tradfri", "eufy", "brel", "bravia", "sonos", "apple"];
+export const ON_PI: Device["integration"][] = ["app", "dirigera", "tradfri", "eufy", "brel", "bravia", "sonos", "apple"];
 
 export const CATEGORIES: { id: string; title: string; kinds: string[]; tone: Tone }[] = [
   { id: "climate", title: "Climate", kinds: ["zone", "heating"], tone: "peach" },
   { id: "lights", title: "Lights", kinds: ["group", "light"], tone: "yellow" },
-  { id: "plugs", title: "Plugs", kinds: ["plug"], tone: "mint" },
   { id: "blinds", title: "Blinds", kinds: ["blind"], tone: "lavender" },
+  { id: "plugs", title: "Plugs", kinds: ["plug"], tone: "mint" },
   { id: "media", title: "Media", kinds: ["tv", "speaker"], tone: "pink" },
   { id: "doorbell", title: "Doorbell", kinds: ["doorbell"], tone: "sage" },
   { id: "sensors", title: "Sensors & remotes", kinds: ["sensor", "remote"], tone: "sky" },
@@ -201,6 +201,13 @@ export function describe(d: Device, s: State): string {
       return num(s.battery) !== null ? `Battery ${s.battery}%` : "";
   }
 }
+
+// Lamps, groups and plugs: their icon is the power button.
+export const hasPower = (d: Device) => d.kind === "light" || d.kind === "group" || d.kind === "plug";
+
+// The lamps in a group made in this app (not a hub's room).
+export const membersOf = (d: Device): string[] =>
+  d.integration === "app" && Array.isArray(d.state.members) ? (d.state.members as string[]) : [];
 
 // A quick tap toggles these; everything else opens the detail sheet.
 export function tapAction(d: Device, s: State): { action: string; params: State } | null {

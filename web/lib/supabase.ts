@@ -9,13 +9,15 @@ export function createClient() {
 
 export type Device = {
   id: string;
-  integration: "dirigera" | "tradfri" | "evohome" | "eufy" | "brel" | "bravia" | "sonos" | "apple";
+  integration: "app" | "dirigera" | "tradfri" | "evohome" | "eufy" | "brel" | "bravia" | "sonos" | "apple";
   kind: string;
   name: string;
   room: string | null;
   online: boolean;
   state: Record<string, unknown>;
   updated_at: string;
+  // A plug with a lamp on it, also shown under Lights.
+  also_light?: boolean;
 };
 
 export type Command = {
