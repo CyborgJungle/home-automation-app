@@ -81,7 +81,7 @@ export function PowerIcon({
         onToggle();
       }}
       onAnimationEnd={(e) => {
-        if (e.animationName === "power-pop" || e.animationName === "power-dim") setAnim(null);
+        if (e.animationName === "power-boing" || e.animationName === "power-blink") setAnim(null);
       }}
     >
       <Icon name={icon} size={size} />
