@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Icon } from "@/components/icons";
 import { Picker } from "@/components/picker";
-import { Sheet, Slider, Switch, timeAgo } from "@/components/ui";
+import { Sheet, Slider, timeAgo } from "@/components/ui";
 import {
   describe,
   displayState,
@@ -666,14 +666,12 @@ function FloorControls({ state: s }: { state: Record<string, unknown> }) {
 
   return (
     <>
+      {/* The floor heating is always on; only its target temperature is set here. */}
       <div className="row-card">
         <span className="grow">
           Floor heating
-          <span className="muted small sub">
-            {!floor.enabled ? "Off" : floor.heating ? "Heating: the boiler is on for the floor" : "Idle: at temperature"}
-          </span>
+          <span className="muted small sub">{floor.heating ? "Heating: the boiler is on for the floor" : "Idle: at temperature"}</span>
         </span>
-        <Switch on={floor.enabled} label="Floor heating" onChange={(enabled) => setFloor({ enabled })} />
       </div>
       <div className="stat-row">
         <div className="stat">

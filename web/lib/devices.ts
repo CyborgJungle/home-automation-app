@@ -31,8 +31,8 @@ export const CATEGORIES: { id: string; title: string; kinds: string[]; tone: Ton
   { id: "lights", title: "Lights", kinds: ["group", "light"], tone: "yellow" },
   { id: "climate", title: "Climate", kinds: ["zone", "heating"], tone: "peach" },
   { id: "blinds", title: "Blinds", kinds: ["blind"], tone: "lavender" },
-  { id: "plugs", title: "Plugs", kinds: ["plug"], tone: "mint" },
   { id: "media", title: "Media", kinds: ["tv", "speaker"], tone: "pink" },
+  { id: "plugs", title: "Plugs", kinds: ["plug"], tone: "mint" },
   { id: "doorbell", title: "Doorbell", kinds: ["doorbell"], tone: "sage" },
   { id: "sensors", title: "Sensors & remotes", kinds: ["sensor", "remote"], tone: "sky" },
 ];
@@ -389,7 +389,6 @@ export function actionOptions(d: Device): ActionOption[] {
             params: (n) => ({ target: n }),
             number: { min: 15, max: 25, step: 0.5, unit: "°C", default: 20 },
           },
-          fixed("floor_off", "Floor heating off", "floor_off"),
         ];
       }
       // The helper zone belongs to the floor-heating thermostat; don't let scenes fight it.
