@@ -11,6 +11,7 @@ const clock = (iso: string) => new Date(iso).toLocaleTimeString("en-GB", { hour:
 
 // Health checks run on the Pi except evohome, which runs in Supabase.
 const WHERE: Record<Device["integration"], string> = {
+  dirigera: "Pi",
   tradfri: "Pi",
   brel: "Pi",
   bravia: "Pi",

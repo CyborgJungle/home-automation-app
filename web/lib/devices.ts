@@ -24,7 +24,7 @@ type State = Record<string, unknown>;
 export const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
 
 // Integrations that need the Raspberry Pi to be online.
-export const ON_PI: Device["integration"][] = ["tradfri", "eufy", "brel", "bravia", "sonos", "apple"];
+export const ON_PI: Device["integration"][] = ["dirigera", "tradfri", "eufy", "brel", "bravia", "sonos", "apple"];
 
 export const CATEGORIES: { id: string; title: string; kinds: string[]; tone: Tone }[] = [
   { id: "climate", title: "Climate", kinds: ["zone", "heating"], tone: "peach" },
@@ -193,6 +193,9 @@ export function describe(d: Device, s: State): string {
     }
     case "doorbell":
       return s.last_ring_at ? `Rang ${new Date(String(s.last_ring_at)).toLocaleString("en-GB", { weekday: "short", hour: "2-digit", minute: "2-digit" })}` : "No rings yet";
+    case "sensor":
+      if (typeof s.motion === "boolean") return s.motion ? "Motion" : "Clear";
+      return num(s.battery) !== null ? `Battery ${s.battery}%` : "";
     default:
       return num(s.battery) !== null ? `Battery ${s.battery}%` : "";
   }
@@ -220,7 +223,13 @@ export type TriggerOption = {
   op: "eq" | "ne" | "lt" | "gt";
   value?: unknown;
   number?: NumberInput;
+  // Fires on an event instead of a state change, e.g. a remote's button press.
+  event?: string;
+  pattern?: string;
 };
+
+const battery: TriggerOption = { id: "battery_low", label: "battery drops below", key: "battery", op: "lt", number: { min: 5, max: 50, step: 5, unit: "%", default: 15 } };
+const press = (id: string, label: string, pattern: string): TriggerOption => ({ id, label, key: "", op: "eq", event: "button.press", pattern });
 
 export function triggerOptions(d: Device): TriggerOption[] {
   switch (d.kind) {
@@ -247,13 +256,20 @@ export function triggerOptions(d: Device): TriggerOption[] {
         { id: "opened", label: "opens fully", key: "position", op: "eq", value: 0 },
         { id: "closed", label: "closes fully", key: "position", op: "eq", value: 100 },
       ];
-    // The IKEA gateway doesn't pass on motion or button presses, only battery.
+    // The old TRÅDFRI gateway only passed on battery levels; DIRIGERA also
+    // reports motion and button presses.
     case "sensor":
-    case "remote":
-    case "doorbell":
+      if (d.integration !== "dirigera") return [battery];
       return [
-        { id: "battery_low", label: "battery drops below", key: "battery", op: "lt", number: { min: 5, max: 50, step: 5, unit: "%", default: 15 } },
+        { id: "motion", label: "detects motion", key: "motion", op: "eq", value: true },
+        { id: "clear", label: "no longer detects motion", key: "motion", op: "eq", value: false },
+        battery,
       ];
+    case "remote":
+      if (d.integration !== "dirigera") return [battery];
+      return [press("press", "is pressed", "singlePress"), press("double", "is double-pressed", "doublePress"), press("long", "is held", "longPress"), battery];
+    case "doorbell":
+      return [battery];
     default:
       return [];
   }

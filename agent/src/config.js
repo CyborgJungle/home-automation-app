@@ -11,6 +11,15 @@ export const config = {
   supabaseSecretKey: env.SUPABASE_SECRET_KEY,
   dataDir,
 
+  // IKEA DIRIGERA hub: run `npm run pair-dirigera -- <hub IP>`.
+  dirigera: env.DIRIGERA_HOST && env.DIRIGERA_TOKEN
+    ? {
+        host: env.DIRIGERA_HOST,
+        token: env.DIRIGERA_TOKEN,
+      }
+    : null,
+
+  // The older IKEA TRÅDFRI gateway (replaced by DIRIGERA).
   tradfri: env.TRADFRI_HOST
     ? {
         host: env.TRADFRI_HOST,

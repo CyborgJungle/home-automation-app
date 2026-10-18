@@ -9,7 +9,7 @@ export function createClient() {
 
 export type Device = {
   id: string;
-  integration: "tradfri" | "evohome" | "eufy" | "brel" | "bravia" | "sonos" | "apple";
+  integration: "dirigera" | "tradfri" | "evohome" | "eufy" | "brel" | "bravia" | "sonos" | "apple";
   kind: string;
   name: string;
   room: string | null;
@@ -54,7 +54,7 @@ export type IntegrationStatus = {
 export type AutomationTrigger =
   | { type: "time"; at: string; days: number[] }
   | { type: "device"; device_id: string; key: string; op: "eq" | "ne" | "lt" | "gt"; value: unknown; option?: string }
-  | { type: "event"; event: string; device_id?: string };
+  | { type: "event"; event: string; device_id?: string; pattern?: string; option?: string };
 
 export type AutomationAction = {
   device_id: string;

@@ -1,22 +1,9 @@
 // One-time pairing with the TRÅDFRI gateway. Saves the result to .env.
 // Usage: npm run pair-tradfri -- <security code from the label under the gateway>
 
-import fs from 'node:fs/promises';
 import readline from 'node:readline/promises';
 import tradfri from 'node-tradfri-client';
-
-const ENV_FILE = '.env';
-
-// Sets KEY=value lines in .env, replacing existing ones, so the key never has to be copied by hand.
-async function saveToEnv(values) {
-  let text = await fs.readFile(ENV_FILE, 'utf8').catch(() => '');
-  for (const [key, value] of Object.entries(values)) {
-    const line = `${key}=${value}`;
-    const pattern = new RegExp(`^${key}=.*$`, 'm');
-    text = pattern.test(text) ? text.replace(pattern, line) : `${text.trimEnd()}\n${line}\n`;
-  }
-  await fs.writeFile(ENV_FILE, text, { mode: 0o600 });
-}
+import { ENV_FILE, saveToEnv } from './env.js';
 
 const { TradfriClient, discoverGateway } = tradfri;
 

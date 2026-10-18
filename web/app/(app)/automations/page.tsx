@@ -57,13 +57,14 @@ function toDraft(a: Automation): Draft {
     id: a.id,
     name: a.name,
     enabled: a.enabled,
-    when: t.type,
+    // Button presses are events, but they're picked like any other device trigger.
+    when: t.type === "event" && t.event === "button.press" ? "device" : t.type,
     at: t.type === "time" ? t.at : d.at,
     days: t.type === "time" ? t.days : d.days,
-    triggerDevice: t.type === "device" ? t.device_id : "",
-    triggerOption: t.type === "device" ? t.option ?? "" : "",
+    triggerDevice: t.type === "device" || (t.type === "event" && t.event === "button.press") ? t.device_id ?? "" : "",
+    triggerOption: t.type === "device" || t.type === "event" ? t.option ?? "" : "",
     triggerValue: t.type === "device" && typeof t.value === "number" ? t.value : null,
-    eventDevice: t.type === "event" ? t.device_id ?? "" : "",
+    eventDevice: t.type === "event" && t.event === "doorbell.ring" ? t.device_id ?? "" : "",
     actions: toRows(a.actions),
   };
 }
@@ -80,7 +81,9 @@ function build(draft: Draft, devices: Device[], scenes: Scene[]): { trigger: Aut
     const option = device && triggerOptions(device).find((o) => o.id === draft.triggerOption);
     if (!device || !option) return "Choose a device and what should happen to it.";
     const value = option.number ? draft.triggerValue ?? option.number.default : option.value;
-    trigger = { type: "device", device_id: device.id, key: option.key, op: option.op, value, option: option.id };
+    trigger = option.event
+      ? { type: "event", event: option.event, device_id: device.id, pattern: option.pattern, option: option.id }
+      : { type: "device", device_id: device.id, key: option.key, op: option.op, value, option: option.id };
   } else {
     trigger = draft.eventDevice
       ? { type: "event", event: "doorbell.ring", device_id: draft.eventDevice }

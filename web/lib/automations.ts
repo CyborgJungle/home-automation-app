@@ -20,6 +20,11 @@ const nameOf = (devices: Device[], id?: string) => devices.find((d) => d.id === 
 
 export function describeTrigger(t: AutomationTrigger, devices: Device[]) {
   if (t.type === "time") return `At ${t.at}, ${daysLabel(t.days)}`;
+  if (t.type === "event" && t.event === "button.press") {
+    const device = devices.find((d) => d.id === t.device_id);
+    const option = device && triggerOptions(device).find((o) => o.id === t.option || (o.event && o.pattern === t.pattern));
+    return `When ${nameOf(devices, t.device_id)} ${option?.label ?? "is pressed"}`;
+  }
   if (t.type === "event") {
     return t.device_id ? `When ${nameOf(devices, t.device_id)} rings` : "When the doorbell rings";
   }

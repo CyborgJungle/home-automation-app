@@ -22,6 +22,7 @@ import { useHome } from "@/lib/home";
 import type { Device } from "@/lib/supabase";
 
 export const INTEGRATION_NAMES: Record<Device["integration"], string> = {
+  dirigera: "IKEA DIRIGERA",
   tradfri: "IKEA TRÅDFRI",
   evohome: "Honeywell evohome",
   eufy: "Eufy",
@@ -295,6 +296,18 @@ function DeviceControls({ device: d }: { device: Device }) {
               <strong>{String(s.battery)}%</strong>
             </div>
           )}
+          {d.kind === "sensor" && typeof s.motion === "boolean" && (
+            <div className="stat">
+              <span className="muted">Motion</span>
+              <strong>{s.motion ? "Detected" : "Clear"}</strong>
+            </div>
+          )}
+          {d.kind === "remote" && d.integration === "dirigera" && (
+            <div className="stat">
+              <span className="muted">Last press</span>
+              <strong className="small-strong">{s.last_press_at ? timeAgo(String(s.last_press_at)) : "–"}</strong>
+            </div>
+          )}
           {d.kind === "doorbell" && (
             <div className="stat">
               <span className="muted">Last ring</span>
@@ -303,7 +316,7 @@ function DeviceControls({ device: d }: { device: Device }) {
           )}
         </div>
       )}
-      {(d.kind === "sensor" || d.kind === "remote") && (
+      {(d.kind === "sensor" || d.kind === "remote") && d.integration === "tradfri" && (
         <p className="muted small">The IKEA gateway only shares the battery level of sensors and remotes, not their button presses.</p>
       )}
 
