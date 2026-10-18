@@ -5,6 +5,7 @@ import { ActionRows, buildActions, emptyRow, toRows, type ActionRow } from "@/co
 import { Icon, SceneArt } from "@/components/icons";
 import { PageHeader, Sheet, timeAgo } from "@/components/ui";
 import { useHome } from "@/lib/home";
+import { useHoldReorder } from "@/lib/use-hold-reorder";
 import { sceneIsOn, scenePlaying } from "@/lib/scenes";
 import { SCENE_SHAPES, type Scene, type SceneShape } from "@/lib/supabase";
 
@@ -23,14 +24,15 @@ const emptyDraft = (i = 0): Draft => ({
 const toDraft = (s: Scene): Draft => ({ id: s.id, name: s.name, tone: s.tone, shape: s.shape, rows: toRows(s.actions), kind: s.kind });
 
 export default function ScenesPage() {
-  const { scenes, devices, commands, playScene } = useHome();
+  const { scenes, devices, commands, playScene, reorderScenes } = useHome();
   const [draft, setDraft] = useState<Draft | null>(null);
+  const drag = useHoldReorder(scenes, reorderScenes);
 
   return (
     <main className="page">
       <PageHeader
         title="Scenes"
-        subtitle="Tap a scene to set the mood"
+        subtitle="Tap to play, hold to move"
         action={
           <button className="pill" onClick={() => setDraft(emptyDraft(scenes.length))}>
             <Icon name="plus" size={18} /> New
@@ -48,18 +50,20 @@ export default function ScenesPage() {
       )}
 
       <div className="scene-grid">
-        {scenes.map((s, i) => {
+        {drag.items.map((s, i) => {
           const on = sceneIsOn(s, devices, commands);
           const playing = scenePlaying(s, commands);
           const count = s.actions.length;
           return (
             <article
               key={s.id}
-              className={`scene-card tone-${s.tone}${on || playing ? ` on ${i % 2 ? "tilt-r" : "tilt-l"}` : ""}`}
+              {...drag.bind(s.id)}
+              style={drag.liftStyle(s.id)}
+              className={`scene-card tone-${s.tone}${on || playing ? ` on ${i % 2 ? "tilt-r" : "tilt-l"}` : ""}${drag.dragId === s.id ? " lifted" : ""}`}
               role="button"
               tabIndex={0}
               aria-label={`Play ${s.name}`}
-              onClick={() => playScene(s)}
+              onClick={() => drag.tapAllowed() && playScene(s)}
               onKeyDown={(e) => e.key === "Enter" && playScene(s)}
             >
               <button
@@ -67,7 +71,7 @@ export default function ScenesPage() {
                 aria-label={`Edit ${s.name}`}
                 onClick={(e) => {
                   e.stopPropagation();
-                  setDraft(toDraft(s));
+                  if (drag.tapAllowed()) setDraft(toDraft(s));
                 }}
               >
                 <Icon name="pencil" size={16} />

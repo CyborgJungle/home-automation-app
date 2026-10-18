@@ -21,6 +21,10 @@ import { isOpen } from "@/lib/devices";
 // The agent writes a heartbeat every 30 s.
 const AGENT_OFFLINE_AFTER_MS = 90_000;
 const COMMAND_HISTORY = 40;
+
+// Scenes in their dragged order; ones never placed go last, oldest first.
+const byPosition = (a: Scene, b: Scene) =>
+  (a.position ?? Number.MAX_SAFE_INTEGER) - (b.position ?? Number.MAX_SAFE_INTEGER) || a.created_at.localeCompare(b.created_at);
 const EVENT_HISTORY = 40;
 const VERSION_CHECK_MS = 2 * 60_000;
 // While a command is in flight, also ask for its status directly in case a
@@ -54,6 +58,7 @@ export type Home = {
   playScene: (scene: Scene) => Promise<void>;
   saveScene: (s: Partial<Scene> & Pick<Scene, "name" | "tone" | "shape" | "actions">) => Promise<string | null>;
   deleteScene: (id: string) => Promise<string | null>;
+  reorderScenes: (ids: string[]) => Promise<void>;
   signOut: () => Promise<void>;
 };
 
@@ -139,7 +144,7 @@ export function HomeProvider({ children }: { children: React.ReactNode }) {
         supabase.from("agent_status").select("*").maybeSingle(),
         supabase.from("integration_status").select("*"),
         supabase.from("automations").select("*").order("created_at"),
-        supabase.from("scenes").select("*").order("created_at"),
+        supabase.from("scenes").select("*"),
         supabase.from("floor_heating").select("*").maybeSingle(),
       ]);
       if (cancelled) return;
@@ -149,7 +154,7 @@ export function HomeProvider({ children }: { children: React.ReactNode }) {
       setAgent(a.data);
       setStatuses(s.data ?? []);
       setAutomations(au.data ?? []);
-      setScenes(sc.data ?? []);
+      setScenes((sc.data ?? []).sort(byPosition));
       setFloorState(fh.data);
       setReady(true);
     }
@@ -179,7 +184,7 @@ export function HomeProvider({ children }: { children: React.ReactNode }) {
       })
       .on<Scene>("postgres_changes", { event: "*", schema: "public", table: "scenes" }, (p) => {
         if (p.eventType === "DELETE") setScenes((list) => list.filter((x) => x.id !== (p.old as Scene).id));
-        else setScenes((list) => [...list.filter((x) => x.id !== p.new.id), p.new].sort((a, b) => a.created_at.localeCompare(b.created_at)));
+        else setScenes((list) => [...list.filter((x) => x.id !== p.new.id), p.new].sort(byPosition));
       })
       .on<AgentStatus>("postgres_changes", { event: "*", schema: "public", table: "agent_status" }, (p) => {
         if (p.eventType !== "DELETE") setAgent(p.new);
@@ -361,7 +366,7 @@ export function HomeProvider({ children }: { children: React.ReactNode }) {
         ? await supabase.from("scenes").update(row).eq("id", s.id).select().single()
         : await supabase.from("scenes").insert(row).select().single();
       if (error) return error.message;
-      setScenes((list) => [...list.filter((x) => x.id !== data.id), data].sort((x, y) => x.created_at.localeCompare(y.created_at)));
+      setScenes((list) => [...list.filter((x) => x.id !== data.id), data].sort(byPosition));
       return null;
     },
     [supabase],
@@ -375,6 +380,16 @@ export function HomeProvider({ children }: { children: React.ReactNode }) {
       return null;
     },
     [supabase],
+  );
+
+  const reorderScenes = useCallback(
+    async (ids: string[]) => {
+      // Show the new order right away; the database confirms it.
+      setScenes((list) => list.map((x) => ({ ...x, position: ids.indexOf(x.id) })).sort(byPosition));
+      const { error } = await supabase.rpc("reorder_scenes", { ids });
+      if (error) toast(`Couldn't save the order: ${error.message}`);
+    },
+    [supabase, toast],
   );
 
   const signOut = useCallback(async () => {
@@ -418,6 +433,7 @@ export function HomeProvider({ children }: { children: React.ReactNode }) {
     playScene,
     saveScene,
     deleteScene,
+    reorderScenes,
     signOut,
   };
 

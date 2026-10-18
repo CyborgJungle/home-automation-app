@@ -105,6 +105,8 @@ export type Scene = {
   tone: string;
   shape: SceneShape;
   actions: SceneAction[];
+  // Where it sits on the Scenes page (dragged into place); new ones go last.
+  position: number | null;
   last_run_at: string | null;
   created_at: string;
   updated_at: string;
