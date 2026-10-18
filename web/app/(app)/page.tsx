@@ -69,23 +69,18 @@ function parseOpen(raw: string): string[] {
   }
 }
 
-// Lights by room: each room's group (the whole room) first, then its lamps.
+// Lights by room, as single lamps (no "all lights" card per room).
 // Lamps that aren't in a room go under "Other".
 function lightsByRoom(list: Device[]) {
-  const rooms = new Map<string, { group: Device | null; lights: Device[] }>();
-  const room = (name: string) => {
-    if (!rooms.has(name)) rooms.set(name, { group: null, lights: [] });
-    return rooms.get(name)!;
-  };
-  for (const d of list) if (d.kind === "group") room(d.name).group = d;
+  const rooms = new Map<string, Device[]>();
   for (const d of list) {
     if (d.kind !== "light") continue;
-    const name = d.room && rooms.has(d.room) ? d.room : "Other";
-    room(name).lights.push(d);
+    const name = d.room ?? "Other";
+    rooms.set(name, [...(rooms.get(name) ?? []), d]);
   }
   return [...rooms.entries()]
     .sort(([a], [b]) => (a === "Other" ? 1 : b === "Other" ? -1 : a.localeCompare(b)))
-    .map(([name, r]) => ({ name, ...r, lights: r.lights.sort((a, b) => a.name.localeCompare(b.name)) }));
+    .map(([name, lights]) => ({ name, lights: lights.sort((a, b) => a.name.localeCompare(b.name)) }));
 }
 
 // One line that says what's going on in a folded group.
@@ -203,7 +198,8 @@ export default function DevicesPage() {
                 </span>
                 <span className="group-text">
                   <strong>
-                    {s.title} <span className="count">{s.devices.length}</span>
+                    {s.title}{" "}
+                    <span className="count">{s.id === "lights" ? s.devices.filter((d) => d.kind === "light").length : s.devices.length}</span>
                   </strong>
                   <span className={warn ? "warn" : undefined}>{sectionSummary(s.id, s.devices, commands)}</span>
                 </span>
@@ -222,7 +218,6 @@ export default function DevicesPage() {
                           {r.lights.length > 0 && <span>{on ? `${on} of ${r.lights.length} on` : "off"}</span>}
                         </h3>
                         <div className="grid">
-                          {r.group && <DeviceTile device={r.group} title="All lights" onOpen={() => setOpenId(r.group!.id)} />}
                           {r.lights.map((d) => (
                             <DeviceTile key={d.id} device={d} onOpen={() => setOpenId(d.id)} />
                           ))}
