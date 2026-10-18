@@ -90,10 +90,15 @@ export const isOpen = (c: Command) =>
 // so values don't flick back to the old ones in between.
 const SETTLE_MS = 10_000;
 
+// Lamps fade for a moment after a command; what they report meanwhile is a
+// value on the way, so keep showing where they're going.
+const FADE_MS = 2500;
+
 function stillLanding(c: Command, d: Device) {
   if (isOpen(c)) return true;
   if (c.status !== "done" || !c.completed_at) return false;
   const done = Date.parse(c.completed_at);
+  if (Date.now() - done < FADE_MS) return true;
   return done >= Date.parse(d.updated_at) && Date.now() - done < SETTLE_MS;
 }
 

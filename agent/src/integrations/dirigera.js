@@ -14,6 +14,9 @@ const RESYNC_MS = 10 * 60_000; // full refresh in case an event was missed
 const RECONNECT_MIN_MS = 2000;
 const RECONNECT_MAX_MS = 60_000;
 const BUTTON_DEDUPE_MS = 400;
+// Lamps fade, and the hub reports in-between values on the way; read the
+// final state once the fade is over.
+const SETTLE_MS = 1800;
 
 const KIND_BY_TYPE = {
   light: 'light',
@@ -35,6 +38,26 @@ export function createDirigera(cfg, hub, log) {
   let resyncTimer = null;
   let pingTimer = null;
   const lastPress = new Map();
+  const settling = new Map(); // DIRIGERA id -> timer
+
+  function refreshSoon(id) {
+    clearTimeout(settling.get(id));
+    settling.set(
+      id,
+      setTimeout(async () => {
+        settling.delete(id);
+        try {
+          const fresh = await api('GET', `/devices/${id}`);
+          if (fresh?.id) {
+            devices.set(id, fresh);
+            publish(fresh);
+          }
+        } catch (e) {
+          log.warn('refresh failed:', e.message);
+        }
+      }, SETTLE_MS),
+    );
+  }
 
   const api = (method, path, json) => dirigeraRequest(cfg.host, method, path, { token: cfg.token, json });
   const idOf = (d) => `dirigera:${d.id}`;
@@ -234,16 +257,20 @@ export function createDirigera(cfg, hub, log) {
     const send = (attrs) => api('PATCH', `/devices/${d.id}`, [{ attributes: attrs }]);
     const { isOn, lightLevel, colorHue, colorSaturation, colorTemperature, ...rest } = attributes;
     if (isOn === true) await send({ isOn });
-    if (lightLevel != null && can(d, 'lightLevel')) await send({ lightLevel });
+    // Once it's on, brightness and colour can go together.
+    const steps = [];
+    if (lightLevel != null && can(d, 'lightLevel')) steps.push(send({ lightLevel }));
     if ((colorHue != null || colorSaturation != null) && can(d, 'colorHue')) {
-      await send({ ...(colorHue != null ? { colorHue } : {}), ...(colorSaturation != null ? { colorSaturation } : {}) });
+      steps.push(send({ ...(colorHue != null ? { colorHue } : {}), ...(colorSaturation != null ? { colorSaturation } : {}) }));
     }
     if (colorTemperature != null && can(d, 'colorTemperature')) {
       const { kelvin_warm: warm, kelvin_cool: cool } = whiteRange(d.attributes ?? {});
-      await send({ colorTemperature: warm ? Math.max(warm, Math.min(cool, colorTemperature)) : colorTemperature });
+      steps.push(send({ colorTemperature: warm ? Math.max(warm, Math.min(cool, colorTemperature)) : colorTemperature }));
     }
+    await Promise.all(steps);
     if (isOn === false) await send({ isOn });
     if (Object.keys(rest).length) await send(rest);
+    refreshSoon(d.id);
   }
 
   async function execute(deviceId, action, params) {
@@ -270,6 +297,7 @@ export function createDirigera(cfg, hub, log) {
     stopped = true;
     clearInterval(resyncTimer);
     clearInterval(pingTimer);
+    for (const t of settling.values()) clearTimeout(t);
     ws?.close();
   }
 

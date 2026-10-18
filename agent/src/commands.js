@@ -71,9 +71,19 @@ export function startCommandLoop(supabase, integrations, log) {
           break;
         }
         // evohome commands are handled by the Supabase function, not the Pi.
+        // IKEA lamps are switched in parallel (a scene lands at once); each
+        // device keeps its own order, and other integrations run one by one.
+        const lanes = new Map();
         for (const cmd of data) {
-          if (AGENT_INTEGRATIONS.includes(prefixOf(cmd))) await run(cmd);
+          if (!AGENT_INTEGRATIONS.includes(prefixOf(cmd))) continue;
+          const lane = prefixOf(cmd) === 'dirigera' ? cmd.device_id : prefixOf(cmd);
+          lanes.set(lane, [...(lanes.get(lane) ?? []), cmd]);
         }
+        await Promise.all(
+          [...lanes.values()].map(async (cmds) => {
+            for (const cmd of cmds) await run(cmd);
+          }),
+        );
       } while (again);
     } finally {
       draining = false;
