@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Icon, type IconKey } from "@/components/icons";
-import { ON_PI } from "@/lib/devices";
 import { useHome } from "@/lib/home";
 
 const TABS: { href: string; label: string; icon: IconKey }[] = [
@@ -14,25 +13,6 @@ const TABS: { href: string; label: string; icon: IconKey }[] = [
   { href: "/automations", label: "Automations", icon: "bolt" },
   { href: "/settings", label: "Settings", icon: "settings" },
 ];
-
-// The thin top bar on every tab. It always takes the same height, even before
-// the Pi's status is known, so page titles never shift.
-// Home leaves it out (the bar still takes its space, so pages line up).
-export function PiStatus() {
-  const path = usePathname();
-  const { agent, agentOnline, devices } = useHome();
-  const known = path !== "/" && (Boolean(agent) || devices.some((d) => ON_PI.includes(d.integration)));
-  return (
-    <div className="app-status">
-      {known && (
-        <span className={`pi-status${agentOnline ? "" : " offline"}`} role="status" aria-label={`Raspberry Pi ${agentOnline ? "online" : "offline"}`}>
-          <span className="pi-status-dot" aria-hidden="true" />
-          Pi {agentOnline ? "online" : "offline"}
-        </span>
-      )}
-    </div>
-  );
-}
 
 // The same title block on every tab: title, one line of subtitle, and an
 // optional button centred beside them.

@@ -135,7 +135,7 @@ p {
 .page {
   max-width: 560px;
   margin: 0 auto;
-  padding: calc(var(--safe-top) + 18px) 18px calc(var(--safe-bottom) + 120px);
+  padding: calc(var(--safe-top) + 12px) 18px calc(var(--safe-bottom) + 120px);
 }
 
 .page.center {
@@ -275,46 +275,10 @@ p {
 
 /* ---------------------------------------------------------------- header */
 
-.app-status {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  height: calc(var(--safe-top) + 26px);
-  max-width: 560px;
-  margin: 0 auto;
-  padding: calc(var(--safe-top) + 10px) 18px 0;
-}
-
-.app-status + .page {
-  padding-top: 10px;
-}
-
-.pi-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  color: var(--ink-2);
-  font-size: 11px;
-  font-weight: 400;
-  line-height: 14px;
-  white-space: nowrap;
-}
-
-.pi-status-dot {
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: light-dark(#7d945c, #9cb878);
-}
-
-.pi-status.offline .pi-status-dot {
-  background: var(--red);
-}
-
 .hello {
   display: grid;
   gap: 14px;
-  margin: 6px 0 18px;
+  margin: 0 0 18px;
 }
 
 .hello-row {
@@ -333,18 +297,13 @@ p {
   min-width: 0;
 }
 
-.hello-row > .pi-status {
-  flex-shrink: 0;
-  margin-left: auto;
-}
-
 /* Every tab's title block: same size, same subtitle line, same spacing. */
 .page-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin: 6px 0 22px;
+  margin: 0 0 22px;
 }
 
 .page-head-text {
