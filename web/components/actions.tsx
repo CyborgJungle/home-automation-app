@@ -119,6 +119,7 @@ export function ActionRows({
                   onChange={(v) => update({ choice: v })}
                 />
               )}
+              {option?.number && option.numberLabel && <p className="muted small">{option.numberLabel}</p>}
               {option?.number && <NumberField input={option.number} value={row.value} onChange={(v) => update({ value: v })} />}
               {option?.offAfter && (
                 <p className="muted small">

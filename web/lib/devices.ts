@@ -306,6 +306,8 @@ export type ActionOption = {
   choices?: { value: string; label: string }[];
   // Automations only: switch the device off again after `number` minutes.
   offAfter?: boolean;
+  // Shown above the number when it's not the main choice, e.g. "Brightness".
+  numberLabel?: string;
 };
 
 const onFor: ActionOption = {
@@ -319,7 +321,10 @@ const onFor: ActionOption = {
 
 const listOf = (v: unknown) => (Array.isArray(v) ? (v as { id: string; name?: string; title?: string }[]) : []);
 
-// "Set colour" for colour lamps, "Set white" for white-spectrum lamps.
+// "Set colour" for colour lamps, "Set white" for white-spectrum lamps; both
+// set the brightness too, so one action gives the whole look.
+const BRIGHTNESS: NumberInput = { min: 1, max: 100, step: 5, unit: "%", default: 100 };
+
 function colourOptions(d: Device): ActionOption[] {
   const options: ActionOption[] = [];
   if (d.state.color) {
@@ -327,11 +332,13 @@ function colourOptions(d: Device): ActionOption[] {
       id: "color",
       label: "Set colour",
       action: "set",
-      params: (_, choice) => {
+      params: (n, choice) => {
         const c = LAMP_COLORS.find((c) => c.id === choice) ?? LAMP_COLORS[0];
-        return { on: true, hue: c.hue, saturation: c.saturation };
+        return { on: true, hue: c.hue, saturation: c.saturation, ...(n !== null ? { brightness: n } : {}) };
       },
       choices: LAMP_COLORS.map((c) => ({ value: c.id, label: c.label })),
+      number: BRIGHTNESS,
+      numberLabel: "Brightness",
     });
   }
   const warm = num(d.state.kelvin_warm);
@@ -341,11 +348,13 @@ function colourOptions(d: Device): ActionOption[] {
       id: "white",
       label: "Set white",
       action: "set",
-      params: (_, choice) => {
+      params: (n, choice) => {
         const k = (WHITES.find((w) => w.id === choice) ?? WHITES[0]).kelvin;
-        return { on: true, color_temp: Math.max(warm, Math.min(cool, k)) };
+        return { on: true, color_temp: Math.max(warm, Math.min(cool, k)), ...(n !== null ? { brightness: n } : {}) };
       },
       choices: WHITES.map((w) => ({ value: w.id, label: w.label })),
+      number: BRIGHTNESS,
+      numberLabel: "Brightness",
     });
   }
   return options;

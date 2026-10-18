@@ -107,7 +107,9 @@ export function describeAction(a: AutomationAction, devices: Device[]) {
   const value =
     option?.number && a.value != null ? ` ${a.value}${option.number.unit}` : "";
   const choice = option?.choices?.find((c) => c.value === a.choice)?.label;
-  return `${label}${value}${choice ? ` ${choice.toLowerCase()}` : ""}`.replace(/^./, (c) => c.toLowerCase());
+  // "set colour purple at 40%" when an action has both a choice and a number.
+  if (choice) return `${label} ${choice.toLowerCase()}${value ? ` at${value}` : ""}`.replace(/^./, (c) => c.toLowerCase());
+  return `${label}${value}`.replace(/^./, (c) => c.toLowerCase());
 }
 
 export function summary(
