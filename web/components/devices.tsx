@@ -18,7 +18,7 @@ import {
   type IconName,
   type Tone,
   tapAction,
-  hasPower,
+  powerOf,
   membersOf,
   toneOf,
 } from "@/lib/devices";
@@ -92,7 +92,7 @@ export function PowerIcon({
 // `icon` and `tone` replace the device's own, e.g. for a lamp on a plug under Lights.
 export function DeviceTile({ device, onOpen, icon, tone }: { device: Device; onOpen: () => void; icon?: IconName; tone?: Tone }) {
   const { state, busy, reachable, send } = useDevice(device);
-  const power = hasPower(device);
+  const power = powerOf(device, state);
   const tap = reachable && !power ? tapAction(device, state) : null;
   const active = reachable && isActive(device, state);
   const temp = device.kind === "zone" ? num(state.temperature) : null;
@@ -114,12 +114,12 @@ export function DeviceTile({ device, onOpen, icon, tone }: { device: Device; onO
         {power ? (
           <PowerIcon
             className="tile-icon"
-            on={reachable && Boolean(state.on)}
+            on={reachable && power.on}
             icon={icon ?? iconOf(device)}
             size={18}
             label={device.name}
             disabled={!reachable}
-            onToggle={() => send(device, "set", { on: !state.on })}
+            onToggle={() => send(device, power.toggle.action, power.toggle.params)}
           />
         ) : (
           <span className="tile-icon">
@@ -174,23 +174,24 @@ export function DeviceSheet({ device, onClose }: { device: Device | null; onClos
 
 function DeviceControls({ device: d }: { device: Device }) {
   const { state: s, reachable, send } = useDevice(d);
+  const power = powerOf(d, s);
   const [setpoint, setSetpoint] = useState<number | null>(null);
   const go = (action: string, params: Record<string, unknown> = {}) => send(d, action, params);
   const position = num(s.position);
 
   return (
     <div className="controls">
-      {/* Lamps and plugs: a dark card when off, their colour when on, like the tiles. */}
-      <div className={hasPower(d) && !(reachable && s.on) ? "control-hero dim" : "control-hero"}>
-        {hasPower(d) ? (
+      {/* Switchable devices: a dark card when off, their colour when on, like the tiles. */}
+      <div className={power && !(reachable && power.on) ? "control-hero dim" : "control-hero"}>
+        {power ? (
           <PowerIcon
             className="hero-icon"
-            on={Boolean(s.on)}
+            on={power.on}
             icon={d.also_light ? "bulb" : iconOf(d)}
             size={28}
             label={d.name}
             disabled={!reachable}
-            onToggle={() => go("set", { on: !s.on })}
+            onToggle={() => go(power.toggle.action, power.toggle.params)}
           />
         ) : (
           <span className="hero-icon">
@@ -666,11 +667,13 @@ function FloorControls({ state: s }: { state: Record<string, unknown> }) {
 
   return (
     <>
-      {/* The floor heating is always on; only its target temperature is set here. */}
+      {/* Switched on and off with the icon at the top, like a lamp. */}
       <div className="row-card">
         <span className="grow">
           Floor heating
-          <span className="muted small sub">{floor.heating ? "Heating: the boiler is on for the floor" : "Idle: at temperature"}</span>
+          <span className="muted small sub">
+            {!floor.enabled ? "Off" : floor.heating ? "Heating: the boiler is on for the floor" : "Idle: at temperature"}
+          </span>
         </span>
       </div>
       <div className="stat-row">

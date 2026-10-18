@@ -64,6 +64,7 @@ function everythingOff(devices: Device[], commands: Command[]) {
       const s = displayState(d, commands);
       if (["light", "group", "plug", "tv"].includes(d.kind)) return !s.on;
       if (d.kind === "speaker") return !s.playing;
+      if (floorOf(s)) return !floorOf(s)!.enabled;
       return true;
     });
 }

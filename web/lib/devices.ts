@@ -202,8 +202,21 @@ export function describe(d: Device, s: State): string {
   }
 }
 
-// Lamps, groups and plugs: their icon is the power button.
-export const hasPower = (d: Device) => d.kind === "light" || d.kind === "group" || d.kind === "plug";
+// Devices whose icon is their power button: lamps, groups, plugs, and the
+// floor heating (on keeps its target temperature, off stops it).
+export function powerOf(d: Device, s: State): { on: boolean; toggle: { action: string; params: State } } | null {
+  if (d.kind === "light" || d.kind === "group" || d.kind === "plug") {
+    return { on: Boolean(s.on), toggle: { action: "set", params: { on: !s.on } } };
+  }
+  const floor = d.kind === "zone" ? floorOf(s) : null;
+  if (floor) {
+    return {
+      on: floor.enabled,
+      toggle: floor.enabled ? { action: "floor_off", params: {} } : { action: "floor_target", params: { target: floor.target } },
+    };
+  }
+  return null;
+}
 
 // The lamps in a group made in this app (not a hub's room).
 export const membersOf = (d: Device): string[] =>
@@ -389,6 +402,7 @@ export function actionOptions(d: Device): ActionOption[] {
             params: (n) => ({ target: n }),
             number: { min: 15, max: 25, step: 0.5, unit: "°C", default: 20 },
           },
+          fixed("floor_off", "Floor heating off", "floor_off"),
         ];
       }
       // The helper zone belongs to the floor-heating thermostat; don't let scenes fight it.
