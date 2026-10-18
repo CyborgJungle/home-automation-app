@@ -56,7 +56,7 @@ function satisfied(a: SceneAction, s: State): boolean | null {
   }
 }
 
-// "Everything off" is on when nothing it would switch off is still on.
+// "Turn everything off" is on when nothing it would switch off is still on.
 function everythingOff(devices: Device[], commands: Command[]) {
   return devices
     .filter((d) => d.online)

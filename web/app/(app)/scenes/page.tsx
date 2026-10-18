@@ -32,7 +32,7 @@ function ideas(devices: Device[]): Draft[] {
   const row = (device_id: string, option: string, value: number | null = null): ActionRow => ({ device_id, option: device_id ? option : "", value });
   const custom = "custom" as const;
   return [
-    { name: "Everything off", tone: "lavender", shape: "cloud", rows: [], kind: "all_off" },
+    { name: "Turn everything off", tone: "lavender", shape: "cloud", rows: [], kind: "all_off" },
     { name: "Movie night", tone: "pink", shape: "star", rows: [row(living, "brightness", 20), row(blind, "close"), ...(tv ? [row(tv, "on")] : [])], kind: custom },
     { name: "Good morning", tone: "yellow", shape: "flower", rows: [row(blind, "open"), row(living, "brightness", 80)], kind: custom },
     { name: "Good night", tone: "lavender", shape: "cloud", rows: allGroups.length ? allGroups.map((id) => row(id, "off")) : [row("", "")], kind: custom },
