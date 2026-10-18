@@ -130,6 +130,7 @@ export function Slider({
   format,
   onCommit,
   disabled,
+  track,
 }: {
   value: number;
   min?: number;
@@ -139,6 +140,8 @@ export function Slider({
   format: (n: number) => string;
   onCommit: (n: number) => void;
   disabled?: boolean;
+  // A background for the whole bar (e.g. a colour gradient) instead of a fill.
+  track?: string;
 }) {
   const bar = useRef<HTMLDivElement>(null);
   const draft = useRef<number | null>(null);
@@ -178,8 +181,8 @@ export function Slider({
   return (
     <div
       ref={bar}
-      className={disabled ? "slider disabled" : "slider"}
-      style={{ "--pct": `${pct}%` } as React.CSSProperties}
+      className={["slider", track && "track", disabled && "disabled"].filter(Boolean).join(" ")}
+      style={{ "--pct": `${pct}%`, ...(track ? { "--track": track } : {}) } as React.CSSProperties}
       role="slider"
       tabIndex={disabled ? -1 : 0}
       aria-label={label}

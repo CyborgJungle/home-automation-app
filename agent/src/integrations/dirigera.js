@@ -40,6 +40,12 @@ export function createDirigera(cfg, hub, log) {
   const idOf = (d) => `dirigera:${d.id}`;
   const roomId = (id) => `dirigera:room:${id}`;
   const nameOf = (d) => d.attributes?.customName || d.attributes?.model || 'IKEA device';
+  const can = (d, attribute) => d.capabilities?.canReceive?.includes(attribute) ?? false;
+  // IKEA names the ends the other way round: "min" is the coolest white.
+  const whiteRange = (a) => {
+    const k = [a.colorTemperatureMin, a.colorTemperatureMax].filter((n) => typeof n === 'number');
+    return k.length === 2 ? { kelvin_warm: Math.min(...k), kelvin_cool: Math.max(...k) } : {};
+  };
   // Some remotes report -1 when the hub doesn't know the battery level yet.
   const batteryOf = (a) => (a.batteryPercentage >= 0 ? a.batteryPercentage : null);
 
@@ -51,7 +57,18 @@ export function createDirigera(cfg, hub, log) {
     if (kind === 'light') {
       state.on = Boolean(a.isOn);
       if (a.lightLevel != null) state.brightness = a.lightLevel;
-      if (a.colorTemperature != null) state.color_temp = a.colorTemperature;
+      // Colour lamps: hue 0-360°, saturation 0-100%.
+      if (can(d, 'colorHue')) {
+        state.color = true;
+        state.hue = Math.round(a.colorHue ?? 0);
+        state.saturation = Math.round((a.colorSaturation ?? 0) * 100);
+        if (a.colorMode) state.color_mode = a.colorMode;
+      }
+      // White-spectrum lamps: colour temperature in kelvin.
+      if (can(d, 'colorTemperature')) {
+        if (a.colorTemperature != null) state.color_temp = a.colorTemperature;
+        Object.assign(state, whiteRange(a));
+      }
     } else if (kind === 'plug') {
       state.on = Boolean(a.isOn);
     } else if (kind === 'blind') {
@@ -85,6 +102,7 @@ export function createDirigera(cfg, hub, log) {
     }
     return [...rooms.values()].map(({ room, lights }) => {
       const lit = lights.filter((l) => l.isReachable !== false && l.attributes?.isOn);
+      const white = lights.filter((l) => can(l, 'colorTemperature')).map((l) => whiteRange(l.attributes ?? {}));
       return {
         id: roomId(room.id),
         integration: 'dirigera',
@@ -95,6 +113,13 @@ export function createDirigera(cfg, hub, log) {
         state: {
           on: lit.length > 0,
           lights: lights.length,
+          ...(lights.some((l) => can(l, 'colorHue')) ? { color: true } : {}),
+          ...(white.some((w) => w.kelvin_warm)
+            ? {
+                kelvin_warm: Math.max(...white.map((w) => w.kelvin_warm ?? 0)),
+                kelvin_cool: Math.min(...white.map((w) => w.kelvin_cool ?? Infinity)),
+              }
+            : {}),
           ...(lit.length ? { brightness: Math.max(...lit.map((l) => l.attributes?.lightLevel ?? 0)) } : {}),
         },
       };
@@ -189,28 +214,40 @@ export function createDirigera(cfg, hub, log) {
     if (params.on != null) a.isOn = Boolean(params.on);
     if (params.brightness != null) a.lightLevel = Math.max(1, Math.min(100, Math.round(Number(params.brightness))));
     if (params.color_temp != null) a.colorTemperature = Math.round(Number(params.color_temp));
+    if (params.hue != null) a.colorHue = ((Number(params.hue) % 360) + 360) % 360;
+    if (params.saturation != null) a.colorSaturation = Math.max(0, Math.min(100, Number(params.saturation))) / 100;
     if (params.position != null) a.blindsTargetLevel = Math.max(0, Math.min(100, Math.round(Number(params.position))));
     if (!Object.keys(a).length) throw new Error('Nothing to change');
     return a;
   }
 
+  // Sends only what the lamp understands, one step at a time: the hub rejects
+  // some combinations, and brightness or colour only stick on a lamp that's on.
   async function patch(d, attributes) {
-    // Brightness only applies to a lamp that's on, so switch it on first.
-    if (attributes.lightLevel != null && attributes.isOn) {
-      await api('PATCH', `/devices/${d.id}`, [{ attributes: { isOn: true } }]);
-      const { isOn, ...rest } = attributes;
-      void isOn;
-      attributes = rest;
+    const send = (attrs) => api('PATCH', `/devices/${d.id}`, [{ attributes: attrs }]);
+    const { isOn, lightLevel, colorHue, colorSaturation, colorTemperature, ...rest } = attributes;
+    if (isOn === true) await send({ isOn });
+    if (lightLevel != null && can(d, 'lightLevel')) await send({ lightLevel });
+    if ((colorHue != null || colorSaturation != null) && can(d, 'colorHue')) {
+      await send({ ...(colorHue != null ? { colorHue } : {}), ...(colorSaturation != null ? { colorSaturation } : {}) });
     }
-    await api('PATCH', `/devices/${d.id}`, [{ attributes }]);
+    if (colorTemperature != null && can(d, 'colorTemperature')) {
+      const { kelvin_warm: warm, kelvin_cool: cool } = whiteRange(d.attributes ?? {});
+      await send({ colorTemperature: warm ? Math.max(warm, Math.min(cool, colorTemperature)) : colorTemperature });
+    }
+    if (isOn === false) await send({ isOn });
+    if (Object.keys(rest).length) await send(rest);
   }
 
   async function execute(deviceId, action, params) {
     const attributes = attributesFor(action, params);
     const room = deviceId.match(/^dirigera:room:(.+)$/);
     if (room) {
-      const lights = [...devices.values()].filter((d) => d.deviceType === 'light' && d.room?.id === room[1] && d.isReachable !== false);
-      if (!lights.length) throw new Error('No reachable lamps in that room');
+      let lights = [...devices.values()].filter((d) => d.deviceType === 'light' && d.room?.id === room[1] && d.isReachable !== false);
+      // A colour or white setting only goes to the lamps that can show it.
+      if (attributes.colorHue != null) lights = lights.filter((d) => can(d, 'colorHue'));
+      else if (attributes.colorTemperature != null) lights = lights.filter((d) => can(d, 'colorTemperature'));
+      if (!lights.length) throw new Error('No reachable lamps in that room can do this');
       const results = await Promise.allSettled(lights.map((d) => patch(d, attributes)));
       const failed = results.filter((r) => r.status === 'rejected');
       if (failed.length === lights.length) throw failed[0].reason;

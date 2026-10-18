@@ -18,6 +18,12 @@ function satisfied(a: SceneAction, s: State): boolean | null {
         if (!(key in s)) return true; // e.g. room groups don't report brightness
         if (key === "brightness") return close(s.brightness, want, 3);
         if (key === "position") return close(s.position, want, 3);
+        if (key === "hue") {
+          const d = Math.abs((num(s.hue) ?? -999) - (num(want) ?? 0)) % 360;
+          return s.color_mode !== "temperature" && Math.min(d, 360 - d) <= 4;
+        }
+        if (key === "saturation") return close(s.saturation, want, 4);
+        if (key === "color_temp") return s.color_mode !== "color" && close(s.color_temp, want, 60);
         return s[key] === want;
       });
     case "power":

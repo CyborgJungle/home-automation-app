@@ -1137,6 +1137,47 @@ button.chip.selected {
   position: relative;
 }
 
+/* Colour sliders: the bar is the colour range, with a marker at the value. */
+.slider.track {
+  background: var(--track);
+}
+
+.slider.track .slider-fill {
+  background: transparent;
+  border-right-color: var(--ink);
+}
+
+.slider.track .slider-label,
+.slider.track .slider-value {
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--field) 82%, transparent);
+}
+
+.swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+  gap: 10px;
+}
+
+.swatch {
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--swatch);
+  border: 1.5px solid var(--line);
+  cursor: pointer;
+}
+
+.swatch.on {
+  border: 3px solid var(--ink);
+  box-shadow: 0 0 0 3px var(--field) inset;
+}
+
+.swatch:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
 .slider-value {
   font-size: 20px;
   font-weight: 800;

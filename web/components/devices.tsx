@@ -20,6 +20,7 @@ import {
 } from "@/lib/devices";
 import { useHome } from "@/lib/home";
 import type { Device } from "@/lib/supabase";
+import { colorCss, HUE_TRACK, hueName, LAMP_COLORS, lampCss, selectedColor, whiteName, whiteTrack } from "@/lib/colors";
 
 export const INTEGRATION_NAMES: Record<Device["integration"], string> = {
   dirigera: "IKEA DIRIGERA",
@@ -117,7 +118,7 @@ function DeviceControls({ device: d }: { device: Device }) {
   return (
     <div className="controls">
       <div className="control-hero">
-        <span className="hero-icon">
+        <span className="hero-icon" style={lampCss(s) ? { background: lampCss(s)! } : undefined}>
           <Icon name={iconOf(d)} size={28} />
         </span>
         <div>
@@ -146,6 +147,7 @@ function DeviceControls({ device: d }: { device: Device }) {
               onCommit={(n) => go("set", { on: true, brightness: n })}
             />
           )}
+          {d.kind !== "plug" && <LampColour state={s} reachable={reachable} go={go} />}
         </>
       )}
 
@@ -322,6 +324,68 @@ function DeviceControls({ device: d }: { device: Device }) {
 
       <p className="muted small">Updated {timeAgo(d.updated_at)}</p>
     </div>
+  );
+}
+
+// Colour swatches and a rainbow slider for colour lamps, and a warm-to-cool
+// slider for white-spectrum lamps. Lamps that can do neither show nothing.
+function LampColour({
+  state: s,
+  reachable,
+  go,
+}: {
+  state: Record<string, unknown>;
+  reachable: boolean;
+  go: (action: string, params?: Record<string, unknown>) => void;
+}) {
+  const warm = num(s.kelvin_warm);
+  const cool = num(s.kelvin_cool);
+  const hue = num(s.hue);
+  const picked = selectedColor(s);
+  return (
+    <>
+      {Boolean(s.color) && (
+        <div className="swatches" role="group" aria-label="Colour">
+          {LAMP_COLORS.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              className={picked === c.id ? "swatch on" : "swatch"}
+              style={{ "--swatch": colorCss(c.hue, c.saturation) } as React.CSSProperties}
+              aria-label={c.label}
+              aria-pressed={picked === c.id}
+              disabled={!reachable}
+              onClick={() => go("set", { on: true, hue: c.hue, saturation: c.saturation })}
+            />
+          ))}
+        </div>
+      )}
+      {Boolean(s.color) && hue !== null && (
+        <Slider
+          label="Colour"
+          value={hue}
+          min={0}
+          max={359}
+          track={HUE_TRACK}
+          format={(n) => hueName(n)}
+          disabled={!reachable}
+          onCommit={(n) => go("set", { on: true, hue: n, saturation: Math.max(num(s.saturation) ?? 100, 70) })}
+        />
+      )}
+      {warm !== null && cool !== null && cool > warm && (
+        <Slider
+          label="White"
+          value={Math.max(warm, Math.min(cool, num(s.color_temp) ?? warm))}
+          min={warm}
+          max={cool}
+          step={50}
+          track={whiteTrack(warm, cool)}
+          format={(k) => whiteName(k).replace(" white", "")}
+          disabled={!reachable}
+          onCommit={(k) => go("set", { on: true, color_temp: k })}
+        />
+      )}
+    </>
   );
 }
 

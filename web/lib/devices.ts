@@ -2,6 +2,7 @@
 // describe it, what a tap does, and which triggers and actions the
 // automation builder offers for it.
 
+import { LAMP_COLORS, WHITES } from "@/lib/colors";
 import type { Command, Device } from "@/lib/supabase";
 
 export type Tone = "yellow" | "peach" | "pink" | "sage" | "lavender" | "mint" | "sky" | "sand";
@@ -287,6 +288,38 @@ export type ActionOption = {
 
 const listOf = (v: unknown) => (Array.isArray(v) ? (v as { id: string; name?: string; title?: string }[]) : []);
 
+// "Set colour" for colour lamps, "Set white" for white-spectrum lamps.
+function colourOptions(d: Device): ActionOption[] {
+  const options: ActionOption[] = [];
+  if (d.state.color) {
+    options.push({
+      id: "color",
+      label: "Set colour",
+      action: "set",
+      params: (_, choice) => {
+        const c = LAMP_COLORS.find((c) => c.id === choice) ?? LAMP_COLORS[0];
+        return { on: true, hue: c.hue, saturation: c.saturation };
+      },
+      choices: LAMP_COLORS.map((c) => ({ value: c.id, label: c.label })),
+    });
+  }
+  const warm = num(d.state.kelvin_warm);
+  const cool = num(d.state.kelvin_cool);
+  if (warm !== null && cool !== null) {
+    options.push({
+      id: "white",
+      label: "Set white",
+      action: "set",
+      params: (_, choice) => {
+        const k = (WHITES.find((w) => w.id === choice) ?? WHITES[0]).kelvin;
+        return { on: true, color_temp: Math.max(warm, Math.min(cool, k)) };
+      },
+      choices: WHITES.map((w) => ({ value: w.id, label: w.label })),
+    });
+  }
+  return options;
+}
+
 export function actionOptions(d: Device): ActionOption[] {
   const fixed = (id: string, label: string, action: string, params: State = {}): ActionOption => ({
     id,
@@ -307,6 +340,7 @@ export function actionOptions(d: Device): ActionOption[] {
           params: (n) => ({ on: true, brightness: n }),
           number: { min: 1, max: 100, step: 1, unit: "%", default: 50 },
         },
+        ...colourOptions(d),
       ];
     case "plug":
       return [fixed("on", "Turn on", "set", { on: true }), fixed("off", "Turn off", "set", { on: false })];
