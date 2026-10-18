@@ -40,6 +40,8 @@ export function createDirigera(cfg, hub, log) {
   const idOf = (d) => `dirigera:${d.id}`;
   const roomId = (id) => `dirigera:room:${id}`;
   const nameOf = (d) => d.attributes?.customName || d.attributes?.model || 'IKEA device';
+  // Some remotes report -1 when the hub doesn't know the battery level yet.
+  const batteryOf = (a) => (a.batteryPercentage >= 0 ? a.batteryPercentage : null);
 
   function deviceRow(d) {
     const kind = KIND_BY_TYPE[d.deviceType];
@@ -56,9 +58,9 @@ export function createDirigera(cfg, hub, log) {
       state.position = a.blindsCurrentLevel ?? null; // 0 = open, 100 = closed
     } else if (kind === 'sensor') {
       state.motion = Boolean(a.isDetected);
-      if (a.batteryPercentage != null) state.battery = a.batteryPercentage;
+      if (batteryOf(a) != null) state.battery = batteryOf(a);
     } else if (kind === 'remote') {
-      if (a.batteryPercentage != null) state.battery = a.batteryPercentage;
+      if (batteryOf(a) != null) state.battery = batteryOf(a);
       const press = lastPress.get(d.id);
       if (press) Object.assign(state, press);
     }
