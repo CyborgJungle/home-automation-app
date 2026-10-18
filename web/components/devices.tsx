@@ -16,6 +16,7 @@ import {
   num,
   ON_PI,
   type IconName,
+  type Tone,
   tapAction,
   hasPower,
   membersOf,
@@ -88,8 +89,8 @@ export function PowerIcon({
   );
 }
 
-// `icon` replaces the device's own icon, e.g. a bulb for a lamp on a plug.
-export function DeviceTile({ device, onOpen, icon }: { device: Device; onOpen: () => void; icon?: IconName }) {
+// `icon` and `tone` replace the device's own, e.g. for a lamp on a plug under Lights.
+export function DeviceTile({ device, onOpen, icon, tone }: { device: Device; onOpen: () => void; icon?: IconName; tone?: Tone }) {
   const { state, busy, reachable, send } = useDevice(device);
   const power = hasPower(device);
   const tap = reachable && !power ? tapAction(device, state) : null;
@@ -98,7 +99,7 @@ export function DeviceTile({ device, onOpen, icon }: { device: Device; onOpen: (
 
   return (
     <div
-      className={["tile", `tone-${toneOf(device)}`, active && "active", !reachable && "off"]
+      className={["tile", `tone-${tone ?? toneOf(device)}`, active && "active", !reachable && "off"]
         .filter(Boolean)
         .join(" ")}
       role="button"

@@ -223,7 +223,7 @@ export default function DevicesPage() {
                         </h3>
                         <div className="grid">
                           {r.lights.map((d) => (
-                            <DeviceTile key={d.id} device={d} icon={d.also_light ? "bulb" : undefined} onOpen={() => setOpenId(d.id)} />
+                            <DeviceTile key={d.id} device={d} icon={d.also_light ? "bulb" : undefined} tone={d.also_light ? "yellow" : undefined} onOpen={() => setOpenId(d.id)} />
                           ))}
                         </div>
                       </div>
