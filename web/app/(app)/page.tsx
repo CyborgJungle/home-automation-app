@@ -69,6 +69,8 @@ function parseOpen(raw: string): string[] {
   }
 }
 
+const ROOM_ORDER = ["Living room", "Bedroom", "Office", "Hallway", "Bathroom", "Studio", "Guest room"];
+
 // Lights by room: single lamps, lamp groups made in the app (whose lamps are
 // then only shown inside the group), and plugs that have a lamp on them.
 // Hub room groups aren't shown. Lamps that aren't in a room go under "Other".
@@ -81,8 +83,13 @@ function lightsByRoom(list: Device[]) {
     const name = d.room ?? "Other";
     rooms.set(name, [...(rooms.get(name) ?? []), d]);
   }
+  // Rooms in the house's own order; any new room after those, "Other" last.
+  const rank = (name: string) => {
+    const i = ROOM_ORDER.indexOf(name);
+    return name === "Other" ? 1000 : i === -1 ? 500 : i;
+  };
   return [...rooms.entries()]
-    .sort(([a], [b]) => (a === "Other" ? 1 : b === "Other" ? -1 : a.localeCompare(b)))
+    .sort(([a], [b]) => rank(a) - rank(b) || a.localeCompare(b))
     .map(([name, lights]) => ({ name, lights: lights.sort((a, b) => a.name.localeCompare(b.name)) }));
 }
 

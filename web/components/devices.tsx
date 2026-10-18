@@ -24,7 +24,7 @@ import {
 } from "@/lib/devices";
 import { useHome } from "@/lib/home";
 import type { Device } from "@/lib/supabase";
-import { colorCss, HUE_TRACK, hueName, LAMP_COLORS, lampCss, selectedColor, whiteName, whiteTrack } from "@/lib/colors";
+import { colorCss, HUE_TRACK, hueName, LAMP_COLORS, selectedColor, whiteName, whiteTrack } from "@/lib/colors";
 
 export const INTEGRATION_NAMES: Record<Device["integration"], string> = {
   app: "Lamp group",
@@ -70,7 +70,9 @@ export function PowerIcon({
   return (
     <button
       type="button"
-      className={[className, "power-icon", on && "lit", anim && `turn-${anim}`].filter(Boolean).join(" ")}
+      className={[className, "power-icon", (icon === "bulb" || icon === "group") && "rays", on && "lit", anim && `turn-${anim}`]
+        .filter(Boolean)
+        .join(" ")}
       style={style}
       aria-pressed={on}
       aria-label={`${label}: turn ${on ? "off" : "on"}`}
@@ -185,7 +187,6 @@ function DeviceControls({ device: d }: { device: Device }) {
         {hasPower(d) ? (
           <PowerIcon
             className="hero-icon"
-            style={lampCss(s) ? { background: lampCss(s)! } : undefined}
             on={Boolean(s.on)}
             icon={d.also_light ? "bulb" : iconOf(d)}
             size={28}

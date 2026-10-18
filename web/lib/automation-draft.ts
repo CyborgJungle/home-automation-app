@@ -27,6 +27,8 @@ export type RuleDraft = {
   weatherValue: number | null;
   sunEvent: "sunrise" | "sunset";
   sunOffset: number;
+  darkFrom: number; // minutes relative to sunset
+  darkUntil: number; // minutes relative to sunrise
 };
 export type RuleBlock = { join: "and" | "or"; rule: RuleDraft };
 export type AutomationDraft = {
@@ -57,6 +59,8 @@ export function emptyRule(category: Category = "time"): RuleDraft {
     weatherValue: null,
     sunEvent: "sunset",
     sunOffset: 0,
+    darkFrom: 0,
+    darkUntil: 0,
   };
 }
 
@@ -83,6 +87,8 @@ function ruleDraft(t: AutomationRule, devices: Device[]): RuleDraft {
         sunOffset: t.offset_minutes,
         days: t.days,
       };
+    case "dark":
+      return { ...d, darkFrom: t.sunset_offset_minutes, darkUntil: t.sunrise_offset_minutes };
     case "weather":
       return {
         ...d,
@@ -176,6 +182,11 @@ export function buildRule(
       };
     }
     return { type: "time", at: d.at, days: [...d.days].sort() };
+  }
+  if (d.when === "dark") {
+    const ok = (n: number) => Number.isInteger(n) && Math.abs(n) <= 180;
+    if (!ok(d.darkFrom) || !ok(d.darkUntil)) return "Choose up to 180 minutes before or after.";
+    return { type: "dark", sunset_offset_minutes: d.darkFrom, sunrise_offset_minutes: d.darkUntil };
   }
   if (d.when === "weather") {
     const predicate = weatherPredicate(d.weatherOption, d.weatherValue);

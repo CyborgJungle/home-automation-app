@@ -73,6 +73,11 @@ export function describeTrigger(
     return `Between ${t.from} and ${t.until}, ${daysLabel(t.days)}`;
   if (t.type === "weather")
     return `When ${describeWeather(t, state).toLowerCase()}`;
+  if (t.type === "dark") {
+    const at = (n: number, event: string) =>
+      n === 0 ? event : `${Math.abs(n)} min ${n < 0 ? "before" : "after"} ${event}`;
+    return `When it's dark (${at(t.sunset_offset_minutes, "sunset")} to ${at(t.sunrise_offset_minutes, "sunrise")})`;
+  }
   if (t.type === "sun") {
     const offset = t.offset_minutes;
     return `${offset === 0 ? "At" : `${Math.abs(offset)} min ${offset < 0 ? "before" : "after"}`} ${t.event}, ${daysLabel(t.days)}`;

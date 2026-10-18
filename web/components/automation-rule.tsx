@@ -202,11 +202,21 @@ export function AutomationRuleFields({
           <Picker
             label="Weather option"
             placeholder="Choose weather"
-            value={rule.when === "sun" ? rule.sunEvent : rule.weatherOption}
+            value={rule.when === "sun" ? rule.sunEvent : rule.when === "dark" ? "dark" : rule.weatherOption}
             groups={[
               {
                 title: "Sun",
-                items: ["sunrise", "sunset"].map((event) => ({
+                items: [
+                  {
+                    value: "dark",
+                    label: "While it's dark",
+                    art: (
+                      <span className="picker-icon tone-lavender">
+                        <Icon name="sun" size={17} />
+                      </span>
+                    ),
+                  },
+                  ...["sunrise", "sunset"].map((event) => ({
                   value: event,
                   label: event === "sunrise" ? "Sunrise" : "Sunset",
                   art: (
@@ -214,7 +224,8 @@ export function AutomationRuleFields({
                       <Icon name="sun" size={17} />
                     </span>
                   ),
-                })),
+                  })),
+                ],
               },
               {
                 title: "Weather",
@@ -230,7 +241,9 @@ export function AutomationRuleFields({
               },
             ]}
             onChange={(value) =>
-              value === "sunrise" || value === "sunset"
+              value === "dark"
+                ? set({ when: "dark" })
+                : value === "sunrise" || value === "sunset"
                 ? set({ when: "sun", sunEvent: value })
                 : set({
                     when: "weather",
@@ -245,6 +258,25 @@ export function AutomationRuleFields({
               value={rule.weatherValue}
               onChange={(weatherValue) => set({ weatherValue })}
             />
+          )}
+          {rule.when === "dark" && (
+            <>
+              <p className="muted small">Starts, minutes from sunset</p>
+              <NumberField
+                input={{ min: -180, max: 180, step: 5, default: 0, unit: " min" }}
+                value={rule.darkFrom}
+                onChange={(darkFrom) => set({ darkFrom })}
+              />
+              <p className="muted small">Ends, minutes from sunrise</p>
+              <NumberField
+                input={{ min: -180, max: 180, step: 5, default: 0, unit: " min" }}
+                value={rule.darkUntil}
+                onChange={(darkUntil) => set({ darkUntil })}
+              />
+              <p className="muted small">
+                Negative minutes are before; positive minutes are after. Pair it with motion to only light up in the evening and night.
+              </p>
+            </>
           )}
           {rule.when === "sun" && (
             <>

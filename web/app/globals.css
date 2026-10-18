@@ -555,8 +555,8 @@ button.chip.selected {
   position: relative;
   display: flex;
   flex-direction: column;
-  height: 100px;
-  padding: 10px 12px;
+  height: 88px;
+  padding: 9px 11px;
   border-radius: var(--r-lg);
   background: var(--paper);
   border: 1.5px solid var(--line);
@@ -597,12 +597,13 @@ button.chip.selected {
   background: var(--paper);
 }
 
-/* Power icon: a faint ink ring says "tap me". Switching on, the bulb boings
-   like the mascot and three ink sparks pop out; switching off, it blinks shut. */
+/* Power icon: a faint ink ring says "tap me". Lamps have no fill, just the
+   bulb in the card's ink; when on, a ring of light dashes surrounds it. The
+   dashes burst in with a mascot-style boing and fold away with a blink. */
 .power-icon {
   position: relative;
   cursor: pointer;
-  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--ink) 18%, transparent);
+  box-shadow: 0 0 0 1.5px color-mix(in srgb, currentColor 22%, transparent);
   transition: transform 0.15s, box-shadow 0.2s, background 0.2s;
 }
 
@@ -610,40 +611,47 @@ button.chip.selected {
   transform: scale(0.88);
 }
 
-.power-icon.lit {
-  box-shadow: 0 0 0 1.5px var(--ink);
-}
-
 .power-icon:disabled {
   cursor: default;
   box-shadow: none;
 }
 
-.power-icon::before {
+.power-icon.rays {
+  background: transparent !important;
+}
+
+.power-icon.rays::before {
   content: "";
   position: absolute;
-  left: 50%;
-  bottom: calc(100% - 2px);
-  width: 30px;
-  height: 12px;
-  margin-left: -15px;
-  background: var(--ink);
-  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 16'%3E%3Cg stroke='black' stroke-width='3.4' stroke-linecap='round' fill='none'%3E%3Cpath d='M7 13 3 8'/%3E%3Cpath d='M20 11V3'/%3E%3Cpath d='m33 13 4-5'/%3E%3C/g%3E%3C/svg%3E") center / contain no-repeat;
-  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 16'%3E%3Cg stroke='black' stroke-width='3.4' stroke-linecap='round' fill='none'%3E%3Cpath d='M7 13 3 8'/%3E%3Cpath d='M20 11V3'/%3E%3Cpath d='m33 13 4-5'/%3E%3C/g%3E%3C/svg%3E") center / contain no-repeat;
+  inset: 0;
+  background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2034%2034'%3E%3Cpath%20d='M23.0%2017.6L25.5%2018.8M23.1%2012.3L25.7%2011.3M20.1%209.0L21.4%206.5M17.0%208.2L17.0%205.4M13.9%209.0L12.6%206.5M10.9%2012.3L8.3%2011.3M11.0%2017.6L8.5%2018.8'%20stroke='black'%20stroke-width='1.9'%20stroke-linecap='round'%20fill='none'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2034%2034'%3E%3Cpath%20d='M23.0%2017.6L25.5%2018.8M23.1%2012.3L25.7%2011.3M20.1%209.0L21.4%206.5M17.0%208.2L17.0%205.4M13.9%209.0L12.6%206.5M10.9%2012.3L8.3%2011.3M11.0%2017.6L8.5%2018.8'%20stroke='black'%20stroke-width='1.9'%20stroke-linecap='round'%20fill='none'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+  transform-origin: 50% 44%;
   opacity: 0;
+  transform: scale(0.6);
   pointer-events: none;
+}
+
+.power-icon.rays.lit::before {
+  opacity: 1;
+  transform: none;
 }
 
 .power-icon.turn-on {
   animation: power-boing 0.55s cubic-bezier(0.3, 1.5, 0.5, 1);
 }
 
-.power-icon.turn-on::before {
-  animation: power-sparks 0.6s ease-out;
+.power-icon.rays.turn-on::before {
+  animation: rays-in 0.55s cubic-bezier(0.3, 1.6, 0.5, 1);
 }
 
 .power-icon.turn-off {
   animation: power-blink 0.38s ease-in-out;
+}
+
+.power-icon.rays.turn-off::before {
+  animation: rays-out 0.32s ease-in;
 }
 
 @keyframes power-boing {
@@ -653,16 +661,20 @@ button.chip.selected {
   100% { transform: scale(1); }
 }
 
-@keyframes power-sparks {
-  0% { opacity: 0; transform: translateY(6px) scale(0.5); }
-  35% { opacity: 1; transform: translateY(0) scale(1.1); }
-  70% { opacity: 1; transform: translateY(-2px) scale(1); }
-  100% { opacity: 0; transform: translateY(-5px) scale(1); }
-}
-
 @keyframes power-blink {
   0%, 100% { transform: scale(1); }
   45% { transform: scale(1.08, 0.72) translateY(2px); }
+}
+
+@keyframes rays-in {
+  0% { opacity: 0; transform: scale(0.5) rotate(-25deg); }
+  55% { opacity: 1; transform: scale(1.18) rotate(4deg); }
+  100% { opacity: 1; transform: none; }
+}
+
+@keyframes rays-out {
+  0% { opacity: 1; transform: none; }
+  100% { opacity: 0; transform: scale(0.55) rotate(18deg); }
 }
 
 .lamp-row-icon {
@@ -675,9 +687,6 @@ button.chip.selected {
   background: var(--subtle);
 }
 
-.lamp-row-icon.lit {
-  background: var(--yellow);
-}
 
 .tile-more {
   display: grid;
@@ -706,10 +715,10 @@ button.chip.selected {
 }
 
 .tile-name {
-  margin-top: 6px;
+  margin-top: 3px;
   font-weight: 700;
   font-size: 15px;
-  line-height: 1.15;
+  line-height: 1.1;
   overflow-wrap: anywhere;
   display: -webkit-box;
   -webkit-line-clamp: 2;
