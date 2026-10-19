@@ -52,7 +52,9 @@ export function createRoborock(cfg, hub, log) {
   let socket = null;
   let deviceId = null;
   let stampOffset = 0; // robot clock minus ours, in seconds
-  let counter = 1;
+  // The robot remembers request IDs across restarts and ignores repeats, so
+  // start somewhere new each time.
+  let counter = 1000 + Math.floor(Math.random() * 90_000);
   let queue = Promise.resolve();
   let timer = null;
   let stopped = false;
@@ -73,7 +75,8 @@ export function createRoborock(cfg, hub, log) {
     header.writeUInt16BE(0x2131, 0);
     header.writeUInt16BE(32 + body.length, 2);
     header.writeUInt32BE(deviceId, 8);
-    header.writeUInt32BE(Math.floor(Date.now() / 1000) + stampOffset, 12);
+    // Its clock plus one: the robot ignores packets that aren't newer.
+    header.writeUInt32BE(Math.floor(Date.now() / 1000) + stampOffset + 1, 12);
     token.copy(header, 16);
     md5(header, body).copy(header, 16);
     return Buffer.concat([header, body]);
@@ -111,7 +114,7 @@ export function createRoborock(cfg, hub, log) {
     const run = async () => {
       if (!deviceId) await hello();
       const idNow = counter++;
-      const payload = Buffer.from(JSON.stringify({ id: idNow, method, params }) + '\0');
+      const payload = Buffer.from(JSON.stringify({ id: idNow, method, params }));
       let reply;
       try {
         reply = await send(packet(payload));
