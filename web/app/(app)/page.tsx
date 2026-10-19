@@ -25,6 +25,7 @@ const SECTION_ICONS: Record<string, IconName> = {
   media: "tv",
   doorbell: "bell",
   sensors: "sensor",
+  cleaning: "vacuum",
 };
 
 // Which groups are unfolded is remembered per phone, so Home opens the way

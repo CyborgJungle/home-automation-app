@@ -137,11 +137,12 @@ const PATHS: Record<string, React.ReactNode> = {
       <path d="M6 6v12" />
     </>
   ),
+  // A robot vacuum from above: round body, laser turret, front bumper.
   vacuum: (
     <>
       <circle cx="12" cy="12" r="9" />
-      <circle cx="12" cy="12" r="3.2" />
-      <path d="M12 3v2.5M4.5 15.5l2-1" />
+      <circle cx="12" cy="9.2" r="2.6" />
+      <path d="M6.6 15.6a7 7 0 0 0 10.8 0" />
     </>
   ),
   speaker: (

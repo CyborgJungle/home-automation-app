@@ -28,6 +28,7 @@
   --mint: #a9dec6;
   --sky: #b3cdf2;
   --sand: #e8dfcf;
+  --aqua: #8fd9de;
   --red: #ec6a52;
 
   --r-xl: 30px;
@@ -79,6 +80,7 @@
 .tone-mint { --tone: var(--mint); }
 .tone-sky { --tone: var(--sky); }
 .tone-sand { --tone: var(--sand); }
+.tone-aqua { --tone: var(--aqua); }
 .tone-red { --tone: var(--red); }
 
 * {

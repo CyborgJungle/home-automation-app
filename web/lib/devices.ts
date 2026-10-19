@@ -5,7 +5,7 @@
 import { LAMP_COLORS, WHITES } from "@/lib/colors";
 import type { Command, Device } from "@/lib/supabase";
 
-export type Tone = "yellow" | "peach" | "pink" | "sage" | "lavender" | "mint" | "sky" | "sand";
+export type Tone = "yellow" | "peach" | "pink" | "sage" | "lavender" | "mint" | "sky" | "sand" | "aqua";
 
 export type IconName =
   | "bulb"
@@ -33,7 +33,7 @@ export const CATEGORIES: { id: string; title: string; kinds: string[]; tone: Ton
   { id: "climate", title: "Climate", kinds: ["zone", "heating"], tone: "peach" },
   { id: "blinds", title: "Blinds", kinds: ["blind"], tone: "lavender" },
   { id: "media", title: "Media", kinds: ["tv", "speaker"], tone: "pink" },
-  { id: "cleaning", title: "Cleaning", kinds: ["vacuum"], tone: "sky" },
+  { id: "cleaning", title: "Cleaning", kinds: ["vacuum"], tone: "aqua" },
   { id: "plugs", title: "Plugs", kinds: ["plug"], tone: "mint" },
   { id: "doorbell", title: "Doorbell", kinds: ["doorbell"], tone: "sage" },
   { id: "sensors", title: "Sensors & remotes", kinds: ["sensor", "remote"], tone: "sky" },
