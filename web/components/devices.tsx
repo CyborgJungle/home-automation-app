@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/icons";
 import { Picker } from "@/components/picker";
 import { Sheet, Slider, timeAgo } from "@/components/ui";
@@ -226,7 +226,7 @@ function DeviceControls({ device: d }: { device: Device }) {
         </>
       )}
 
-      {d.kind === "zone" && floorOf(s) && <FloorControls state={s} />}
+      {d.kind === "zone" && floorOf(s) && <RoomTemperature state={s} reachable={reachable} go={go} />}
 
       {d.kind === "zone" && Boolean(s.floor_helper) && (
         <div className="note-card">
@@ -235,34 +235,10 @@ function DeviceControls({ device: d }: { device: Device }) {
             The living-room thermostat sets this zone to 30° to make the boiler fire and to 5° to stop it. Its own
             temperature is ignored. Its radiator should be closed underneath, so this room doesn&apos;t heat.
           </p>
-          <ZoneInfo state={s} />
         </div>
       )}
 
-      {d.kind === "zone" && !floorOf(s) && !s.floor_helper && (
-        <>
-          {/* + and − turn the room on at that temperature; the icon turns it off. */}
-          <div className="stat-row">
-            <div className="stat">
-              <span className="muted">Now</span>
-              <strong>{num(s.temperature)?.toFixed(1) ?? "–"}°</strong>
-            </div>
-            <div className="stat">
-              <span className="muted">{roomOn(s) ? "Heating to" : "Off · heat to"}</span>
-              <div className="stepper">
-                <button className="round" disabled={!reachable} onClick={() => go("room_on", { setpoint: Math.max(10, roomTarget(s) - 0.5) })} aria-label="Lower">
-                  <Icon name="minus" size={18} />
-                </button>
-                <strong>{roomTarget(s).toFixed(1)}°</strong>
-                <button className="round" disabled={!reachable} onClick={() => go("room_on", { setpoint: Math.min(30, roomTarget(s) + 0.5) })} aria-label="Raise">
-                  <Icon name="plus" size={18} />
-                </button>
-              </div>
-            </div>
-          </div>
-          <ZoneInfo state={s} />
-        </>
-      )}
+      {d.kind === "zone" && !floorOf(s) && !s.floor_helper && <RoomTemperature state={s} reachable={reachable} go={go} />}
 
       {d.kind === "heating" && (
         <>
@@ -663,15 +639,7 @@ function AppleTvControls({
   );
 }
 
-// How Honeywell has the zone set up, and any faults, in words.
-const ZONE_TYPES: Record<string, string> = {
-  RadiatorZone: "Radiator zone (radiator knobs)",
-  UnderfloorHeating: "Floor heating",
-  ZoneValves: "Zone valve (relay)",
-  ElectricHeating: "Electric heating",
-  MixingValve: "Mixing valve",
-};
-
+// Faults Honeywell reports for a room, in words.
 const FAULTS: Record<string, string> = {
   TempZoneSensorLowBattery: "Sensor battery low",
   TempZoneActuatorLowBattery: "Radiator knob battery low",
@@ -679,76 +647,61 @@ const FAULTS: Record<string, string> = {
   TempZoneActuatorCommunicationLost: "Radiator knob out of contact",
 };
 
-function ZoneInfo({ state: s }: { state: Record<string, unknown> }) {
-  const faults = Array.isArray(s.fault_types) ? (s.fault_types as string[]) : [];
-  if (!s.zone_type && !faults.length) return null;
+// A room's temperature now and the one it heats to. Tapping + or − turns the
+// room on at that temperature; taps are gathered and only the final value is
+// sent, a moment after the last tap. The living room's limits suit its floor.
+const SEND_AFTER_MS = 900;
+
+function RoomTemperature({
+  state: s,
+  reachable,
+  go,
+}: {
+  state: Record<string, unknown>;
+  reachable: boolean;
+  go: (action: string, params?: Record<string, unknown>) => void;
+}) {
+  const floor = Boolean(floorOf(s));
+  const [min, max] = floor ? [15, 25] : [10, 30];
+  const [pending, setPending] = useState<number | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const shown = pending ?? roomTarget(s);
+  const faults = (Array.isArray(s.fault_types) ? (s.fault_types as string[]) : []).map((f) => FAULTS[f] ?? f);
+
+  const nudge = (delta: number) => {
+    const next = Math.min(max, Math.max(min, shown + delta));
+    setPending(next);
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
+      go("room_on", { setpoint: next });
+      setPending(null);
+    }, SEND_AFTER_MS);
+  };
+
+  useEffect(() => () => {
+    if (timer.current) clearTimeout(timer.current);
+  }, []);
+
   return (
-    <div className="list-card">
-      {Boolean(s.zone_type) && (
-        <div className="list-row">
-          <span className="grow">
-            <span className="muted small sub">Set up as</span>
-            <strong>{ZONE_TYPES[String(s.zone_type)] ?? String(s.zone_type)}</strong>
-          </span>
+    <div className="stat-row">
+      <div className="stat">
+        <span className="muted">Now</span>
+        <strong>{num(s.temperature)?.toFixed(1) ?? "–"}°</strong>
+      </div>
+      <div className="stat">
+        <span className="muted">{roomOn(s) || pending !== null ? "Heating to" : "Off · heat to"}</span>
+        <div className="stepper">
+          <button className="round" disabled={!reachable || shown <= min} onClick={() => nudge(-0.5)} aria-label="Lower">
+            <Icon name="minus" size={16} />
+          </button>
+          <strong>{shown.toFixed(1)}°</strong>
+          <button className="round" disabled={!reachable || shown >= max} onClick={() => nudge(0.5)} aria-label="Raise">
+            <Icon name="plus" size={16} />
+          </button>
         </div>
-      )}
-      {faults.map((f) => (
-        <div key={f} className="list-row">
-          <span className="dot bad" />
-          <span className="grow">{FAULTS[f] ?? f.replace(/([a-z])([A-Z])/g, "$1 $2")}</span>
-        </div>
-      ))}
+      </div>
+      {faults.length > 0 && <p className="muted small warn-text">{faults.join(" · ")}</p>}
     </div>
   );
 }
 
-// The living-room floor-heating thermostat (Supabase switches the helper zone).
-function FloorControls({ state: s }: { state: Record<string, unknown> }) {
-  const { floor, setFloor, devices, send } = useHome();
-  const f = floorOf(s);
-  if (!floor || !f) return null;
-  const system = devices.find((d) => d.kind === "heating" && d.integration === "evohome");
-  const systemOff = system?.state.mode === "HeatingOff";
-  const step = (delta: number) => setFloor({ target: Math.min(25, Math.max(15, Number(floor.target) + delta)) });
-
-  return (
-    <>
-      {/* Switched on and off with the icon at the top, like a lamp. */}
-      <div className="row-card">
-        <span className="grow">
-          Floor heating
-          <span className="muted small sub">
-            {!floor.enabled ? "Off" : floor.heating ? "Heating: the boiler is on for the floor" : "Idle: at temperature"}
-          </span>
-        </span>
-      </div>
-      <div className="stat-row">
-        <div className="stat">
-          <span className="muted">Now</span>
-          <strong>{num(s.temperature)?.toFixed(1) ?? "–"}°</strong>
-        </div>
-        <div className="stat">
-          <span className="muted">Target</span>
-          <div className="stepper">
-            <button className="round" aria-label="Lower" onClick={() => step(-0.5)}>
-              <Icon name="minus" size={18} />
-            </button>
-            <strong>{Number(floor.target).toFixed(1)}°</strong>
-            <button className="round" aria-label="Raise" onClick={() => step(0.5)}>
-              <Icon name="plus" size={18} />
-            </button>
-          </div>
-        </div>
-      </div>
-      {systemOff && system && (
-        <div className="note-card warn">
-          <strong>The heating system is switched Off</strong>
-          <p className="muted small">Nothing can fire the boiler until it&apos;s on Schedule.</p>
-          <button className="pill small" onClick={() => send(system, "set_mode", { mode: "Auto" })}>
-            Switch to Schedule
-          </button>
-        </div>
-      )}
-    </>
-  );
-}

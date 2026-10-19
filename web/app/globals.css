@@ -1079,6 +1079,13 @@ button.chip.selected {
   font-weight: 650;
 }
 
+/* A warning under the stats (e.g. a radiator knob's battery). */
+.stat-row .warn-text {
+  grid-column: 1 / -1;
+  color: var(--warn);
+  font-weight: 700;
+}
+
 .stat-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
@@ -1105,20 +1112,25 @@ button.chip.selected {
   font-size: 22px;
 }
 
+/* Fits inside half a card on a phone: small round buttons, compact number. */
 .stepper {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 6px;
+  gap: 4px;
+  min-width: 0;
 }
 
 .stepper .round {
-  width: 38px;
-  height: 38px;
+  flex: none;
+  width: 32px;
+  height: 32px;
 }
 
 .stepper strong {
-  font-size: 28px;
+  font-size: 22px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .note-card {
