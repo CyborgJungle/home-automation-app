@@ -11,7 +11,8 @@ export const DEFAULT_HOST = "https://tccna.resideo.com";
 export type Token = { accessToken: string; refreshToken: string | null; expiresAt: number };
 // How a zone heats (from the installation setup), e.g. "RadiatorZone",
 // "UnderfloorHeating", "ZoneValves", "ElectricHeating", "MixingValve".
-export type ZoneConfig = { zoneType: string | null; modelType: string | null };
+// minHeat/maxHeat: the zone's own setpoint limits; Honeywell clamps to them.
+export type ZoneConfig = { zoneType: string | null; modelType: string | null; minHeat: number | null; maxHeat: number | null };
 export type Location = {
   id: string;
   name: string;
@@ -80,6 +81,8 @@ export function statusToDevices(locationName: string, status: Json, location?: L
             fault_types: faultTypes(zone.activeFaults),
             zone_type: location?.zones?.[zone.zoneId]?.zoneType ?? null,
             model_type: location?.zones?.[zone.zoneId]?.modelType ?? null,
+            min_setpoint: location?.zones?.[zone.zoneId]?.minHeat ?? null,
+            max_setpoint: location?.zones?.[zone.zoneId]?.maxHeat ?? null,
           },
         });
       }
@@ -200,7 +203,12 @@ export class Honeywell {
       const systems = (i.gateways ?? []).flatMap((g: Json) => g.temperatureControlSystems ?? []);
       const zones: Record<string, ZoneConfig> = {};
       for (const z of systems.flatMap((s: Json) => s.zones ?? [])) {
-        zones[z.zoneId] = { zoneType: z.zoneType ?? null, modelType: z.modelType ?? null };
+        zones[z.zoneId] = {
+          zoneType: z.zoneType ?? null,
+          modelType: z.modelType ?? null,
+          minHeat: z.setpointCapabilities?.minHeatSetpoint ?? null,
+          maxHeat: z.setpointCapabilities?.maxHeatSetpoint ?? null,
+        };
       }
       return {
         id: i.locationInfo.locationId,

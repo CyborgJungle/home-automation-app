@@ -126,7 +126,7 @@ export function displayState(d: Device, commands: Command[]): State {
       else Object.assign(state, { mode: "PermanentOverride", setpoint: p.setpoint });
     } else if (c.action === "room_off") {
       if (floorOf(state)) state.floor = { ...floorOf(state), enabled: false };
-      else Object.assign(state, { mode: "PermanentOverride", setpoint: 5 });
+      else Object.assign(state, { mode: "PermanentOverride", setpoint: roomLimits(state).min });
     }
     else if (c.action === "set_temperature") state.setpoint = p.setpoint;
     else if (c.action === "set_mode") state.mode = p.mode;
@@ -247,12 +247,15 @@ export function powerOf(d: Device, s: State): { on: boolean; toggle: { action: s
   return null;
 }
 
-// A room counts as on when it holds its own temperature above off (5°), or,
-// for the living room, when its floor heating is on.
+// Honeywell's limits for a room (it clamps to them); "off" is the minimum.
+export const roomLimits = (s: State) => ({ min: Math.max(5, num(s.min_setpoint) ?? 5), max: num(s.max_setpoint) ?? 30 });
+
+// A room counts as on when it holds its own temperature above its minimum
+// ("off"), or, for the living room, when its floor heating is on.
 export function roomOn(s: State) {
   const floor = floorOf(s);
   if (floor) return floor.enabled;
-  return (s.mode === "PermanentOverride" || s.mode === "TemporaryOverride") && (num(s.setpoint) ?? 0) > 5;
+  return (s.mode === "PermanentOverride" || s.mode === "TemporaryOverride") && (num(s.setpoint) ?? 0) > roomLimits(s).min;
 }
 
 // The temperature a room is (or would be) heated to.
@@ -260,7 +263,7 @@ export function roomTarget(s: State) {
   const floor = floorOf(s);
   if (floor) return Number(floor.target) || 20;
   const sp = num(s.setpoint);
-  return sp !== null && sp > 5 ? sp : 20;
+  return sp !== null && sp > roomLimits(s).min ? sp : 20;
 }
 
 // The lamps in a group made in this app (not a hub's room).

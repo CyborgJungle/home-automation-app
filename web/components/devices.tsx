@@ -21,6 +21,7 @@ import {
   powerOf,
   roomOn,
   roomTarget,
+  roomLimits,
   membersOf,
   toneOf,
 } from "@/lib/devices";
@@ -649,7 +650,7 @@ const FAULTS: Record<string, string> = {
 
 // A room's temperature now and the one it heats to. Tapping + or − turns the
 // room on at that temperature; taps are gathered and only the final value is
-// sent, a moment after the last tap. The living room's limits suit its floor.
+// sent, a moment after the last tap. The range is the room's Honeywell limits.
 const SEND_AFTER_MS = 900;
 
 function RoomTemperature({
@@ -661,8 +662,9 @@ function RoomTemperature({
   reachable: boolean;
   go: (action: string, params?: Record<string, unknown>) => void;
 }) {
-  const floor = Boolean(floorOf(s));
-  const [min, max] = floor ? [15, 25] : [10, 30];
+  const { min: low, max } = roomLimits(s);
+  // One step above "off", so + and − always mean "on at this temperature".
+  const min = low + 0.5;
   const [pending, setPending] = useState<number | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const shown = pending ?? roomTarget(s);

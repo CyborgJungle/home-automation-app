@@ -46,8 +46,8 @@ test("statusToDevices maps the system and its zones", () => {
     id: "1",
     name: "Home",
     zones: {
-      "10": { zoneType: "UnderfloorHeating", modelType: "HeatingZone" },
-      "11": { zoneType: "RadiatorZone", modelType: "HeatingZone" },
+      "10": { zoneType: "UnderfloorHeating", modelType: "HeatingZone", minHeat: 5, maxHeat: 35 },
+      "11": { zoneType: "RadiatorZone", modelType: "HeatingZone", minHeat: 5, maxHeat: 35 },
     },
     systemType: "EvoTouch",
     hotWater: false,

@@ -113,8 +113,11 @@ Deno.serve(async () => {
     if (ran || due) {
       lastPollAt = new Date().toISOString();
       if (ran) await sleep(3_000); // let Honeywell apply the change before reading it back
-      // Older cached setups lack the zone details; read the setup again once.
-      if (!locations?.every((l) => l.zones)) locations = await honeywell.locations();
+      // Older cached setups lack the zone details (or their setpoint limits);
+      // read the setup again once.
+      if (!locations?.every((l) => l.zones && Object.values(l.zones).every((z) => "minHeat" in z))) {
+        locations = await honeywell.locations();
+      }
       for (const row of await honeywell.devices(locations)) {
         await supabase.from("devices").upsert({ ...row, updated_at: new Date().toISOString() });
       }
