@@ -27,6 +27,7 @@ import type { Device } from "@/lib/supabase";
 import { colorCss, HUE_TRACK, hueName, LAMP_COLORS, selectedColor, whiteName, whiteTrack } from "@/lib/colors";
 
 export const INTEGRATION_NAMES: Record<Device["integration"], string> = {
+  roborock: "Roborock",
   app: "Lamp group",
   dirigera: "IKEA DIRIGERA",
   tradfri: "IKEA TRÅDFRI",
@@ -359,6 +360,8 @@ function DeviceControls({ device: d }: { device: Device }) {
 
       {d.kind === "speaker" && <SpeakerControls state={s} reachable={reachable} go={go} />}
 
+      {d.kind === "vacuum" && <VacuumControls state={s} reachable={reachable} go={go} />}
+
       {(d.kind === "doorbell" || d.kind === "sensor" || d.kind === "remote") && (
         <div className="stat-row">
           {num(s.battery) !== null && (
@@ -390,6 +393,74 @@ function DeviceControls({ device: d }: { device: Device }) {
       {d.kind === "remote" && Array.isArray(s.controls) && <RemoteLinks ids={s.controls as string[]} />}
 
     </div>
+  );
+}
+
+// Start, pause and dock, how loud it cleans, and where it is.
+function VacuumControls({
+  state: s,
+  reachable,
+  go,
+}: {
+  state: Record<string, unknown>;
+  reachable: boolean;
+  go: (action: string, params?: Record<string, unknown>) => void;
+}) {
+  const fans = [
+    { id: "quiet", label: "Quiet" },
+    { id: "balanced", label: "Balanced" },
+    { id: "turbo", label: "Turbo" },
+    { id: "max", label: "Max" },
+  ];
+  return (
+    <>
+      <div className="stat-row">
+        <div className="stat">
+          <span className="muted">Battery</span>
+          <strong>{num(s.battery) !== null ? `${s.battery}%` : "–"}</strong>
+        </div>
+        {Boolean(s.cleaning) && (
+          <div className="stat">
+            <span className="muted">This run</span>
+            <strong className="small-strong">
+              {String(s.minutes ?? 0)} min · {String(s.area_m2 ?? 0)} m²
+            </strong>
+          </div>
+        )}
+      </div>
+      <div className="chips">
+        {s.cleaning ? (
+          <button className="chip" disabled={!reachable} onClick={() => go("pause")}>
+            Pause
+          </button>
+        ) : (
+          <button className="chip selected" disabled={!reachable} onClick={() => go("start")}>
+            {s.paused ? "Continue" : "Start cleaning"}
+          </button>
+        )}
+        <button className="chip" disabled={!reachable || Boolean(s.docked)} onClick={() => go("dock")}>
+          Return to dock
+        </button>
+        <button className="chip" disabled={!reachable} onClick={() => go("find")}>
+          Find it
+        </button>
+      </div>
+      <div className="chips" role="radiogroup" aria-label="Suction">
+        {fans.map((f) => (
+          <button
+            key={f.id}
+            role="radio"
+            aria-checked={s.fan === f.id}
+            className={s.fan === f.id ? "chip selected" : "chip"}
+            disabled={!reachable}
+            onClick={() => go("fan", { level: f.id })}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
+      {num(s.error) ? <p className="muted small">The vacuum reports error {String(s.error)}. Check the Roborock app.</p> : null}
+    </>
   );
 }
 

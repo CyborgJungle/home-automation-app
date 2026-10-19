@@ -65,6 +65,15 @@ export const config = {
       }
     : null,
 
+  // Roborock vacuum: its IP address and 32-character device token (see README).
+  roborock: env.ROBOROCK_HOST && /^[0-9a-f]{32}$/i.test(env.ROBOROCK_TOKEN ?? '')
+    ? {
+        host: env.ROBOROCK_HOST,
+        token: env.ROBOROCK_TOKEN,
+        name: env.ROBOROCK_NAME || 'Roborock',
+      }
+    : null,
+
   bravia: env.BRAVIA_HOST && env.BRAVIA_PSK
     ? {
         host: env.BRAVIA_HOST,

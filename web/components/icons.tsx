@@ -137,6 +137,13 @@ const PATHS: Record<string, React.ReactNode> = {
       <path d="M6 6v12" />
     </>
   ),
+  vacuum: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <circle cx="12" cy="12" r="3.2" />
+      <path d="M12 3v2.5M4.5 15.5l2-1" />
+    </>
+  ),
   speaker: (
     <>
       <rect x="6" y="3" width="12" height="18" rx="3" />
