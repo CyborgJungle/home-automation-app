@@ -144,7 +144,12 @@ export default function DevicesPage() {
   const sections = CATEGORIES.map((c) => ({
     ...c,
     // Plugs with a lamp on them show under Lights too.
-    devices: devices.filter((d) => c.kinds.includes(d.kind) || (c.id === "lights" && d.also_light)).sort(byKindThenName),
+    // Climate shows the rooms only: the heating system follows them on its
+    // own, and the floor heating's helper zone isn't a room you heat.
+    devices: devices
+      .filter((d) => c.kinds.includes(d.kind) || (c.id === "lights" && d.also_light))
+      .filter((d) => d.kind !== "heating" && !d.state.floor_helper)
+      .sort(byKindThenName),
   })).filter((c) => c.devices.length > 0);
 
   return (

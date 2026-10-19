@@ -1,6 +1,6 @@
 // Whether a scene is "on": every device in it looks the way the scene sets it.
 
-import { displayState, floorOf, isOpen, num } from "@/lib/devices";
+import { displayState, floorOf, isOpen, num, roomOn, roomTarget } from "@/lib/devices";
 import type { Command, Device, SceneAction, Scene } from "@/lib/supabase";
 
 type State = Record<string, unknown>;
@@ -51,6 +51,10 @@ function satisfied(a: SceneAction, s: State): boolean | null {
       return !floorOf(s)?.enabled;
     case "follow_schedule":
       return s.mode === "FollowSchedule";
+    case "room_on":
+      return roomOn(s) && close(roomTarget(s), p.setpoint, 0.1);
+    case "room_off":
+      return !roomOn(s);
     default:
       return null;
   }

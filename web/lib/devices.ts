@@ -121,6 +121,13 @@ export function displayState(d: Device, commands: Command[]): State {
     else if (c.action === "volume" && p.volume != null) state.volume = p.volume;
     else if (c.action === "floor_target") state.floor = { ...floorOf(state), enabled: true, target: p.target };
     else if (c.action === "floor_off") state.floor = { ...floorOf(state), enabled: false };
+    else if (c.action === "room_on") {
+      if (floorOf(state)) state.floor = { ...floorOf(state), enabled: true, target: p.setpoint };
+      else Object.assign(state, { mode: "PermanentOverride", setpoint: p.setpoint });
+    } else if (c.action === "room_off") {
+      if (floorOf(state)) state.floor = { ...floorOf(state), enabled: false };
+      else Object.assign(state, { mode: "PermanentOverride", setpoint: 5 });
+    }
     else if (c.action === "set_temperature") state.setpoint = p.setpoint;
     else if (c.action === "set_mode") state.mode = p.mode;
     else if (c.action === "start") {
@@ -189,9 +196,9 @@ export function describe(d: Device, s: State): string {
       return s.on ? "On" : "Off";
     case "zone": {
       const floor = floorOf(s);
-      if (floor) return floor.enabled ? `Floor ${floor.heating ? "heating" : "idle"} · ${floor.target}°` : "Floor heating off";
+      if (floor) return floor.enabled ? `On · ${floor.target}°${floor.heating ? " · heating" : ""}` : "Off";
       if (s.floor_helper) return "Boiler switch for the floor";
-      return num(s.setpoint) !== null ? `Set to ${s.setpoint}°` : "";
+      return roomOn(s) ? `On · ${s.setpoint}°` : "Off";
     }
     case "heating":
       return `Mode: ${modeLabel(s.mode)}`;
@@ -231,14 +238,29 @@ export function powerOf(d: Device, s: State): { on: boolean; toggle: { action: s
   if (d.kind === "light" || d.kind === "group" || d.kind === "plug") {
     return { on: Boolean(s.on), toggle: { action: "set", params: { on: !s.on } } };
   }
-  const floor = d.kind === "zone" ? floorOf(s) : null;
-  if (floor) {
-    return {
-      on: floor.enabled,
-      toggle: floor.enabled ? { action: "floor_off", params: {} } : { action: "floor_target", params: { target: floor.target } },
-    };
+  // Rooms: on at a temperature, or off. Turning one on starts the heating
+  // system if needed (see migrations/…_room_heating.sql).
+  if (d.kind === "zone" && !s.floor_helper) {
+    const on = roomOn(s);
+    return { on, toggle: on ? { action: "room_off", params: {} } : { action: "room_on", params: { setpoint: roomTarget(s) } } };
   }
   return null;
+}
+
+// A room counts as on when it holds its own temperature above off (5°), or,
+// for the living room, when its floor heating is on.
+export function roomOn(s: State) {
+  const floor = floorOf(s);
+  if (floor) return floor.enabled;
+  return (s.mode === "PermanentOverride" || s.mode === "TemporaryOverride") && (num(s.setpoint) ?? 0) > 5;
+}
+
+// The temperature a room is (or would be) heated to.
+export function roomTarget(s: State) {
+  const floor = floorOf(s);
+  if (floor) return Number(floor.target) || 20;
+  const sp = num(s.setpoint);
+  return sp !== null && sp > 5 ? sp : 20;
 }
 
 // The lamps in a group made in this app (not a hub's room).
@@ -437,40 +459,28 @@ export function actionOptions(d: Device): ActionOption[] {
         return [
           {
             id: "floor_target",
-            label: "Floor heating to",
-            action: "floor_target",
-            params: (n) => ({ target: n }),
+            label: "Heat to",
+            action: "room_on",
+            params: (n) => ({ setpoint: n }),
             number: { min: 15, max: 25, step: 0.5, unit: "°C", default: 20 },
           },
-          fixed("floor_off", "Floor heating off", "floor_off"),
+          fixed("floor_off", "Turn off", "room_off"),
         ];
       }
       // The helper zone belongs to the floor-heating thermostat; don't let scenes fight it.
       if (d.state.floor_helper) return [];
       return [
         {
-          id: "temp_1h",
-          label: "Heat to (1 hour)",
-          action: "set_temperature",
-          params: (n) => ({ setpoint: n, minutes: 60 }),
-          number: { min: 5, max: 30, step: 0.5, unit: "°C", default: 20 },
-        },
-        {
           id: "temp",
-          label: "Heat to (until changed)",
-          action: "set_temperature",
+          label: "Heat to",
+          action: "room_on",
           params: (n) => ({ setpoint: n }),
-          number: { min: 5, max: 30, step: 0.5, unit: "°C", default: 20 },
+          number: { min: 10, max: 30, step: 0.5, unit: "°C", default: 20 },
         },
-        fixed("schedule", "Resume schedule", "follow_schedule"),
+        fixed("off", "Turn off", "room_off"),
       ];
     case "heating":
-      return [
-        fixed("auto", "Mode: Schedule", "set_mode", { mode: "Auto" }),
-        fixed("eco", "Mode: Eco", "set_mode", { mode: "AutoWithEco" }),
-        fixed("away", "Mode: Away", "set_mode", { mode: "Away" }),
-        fixed("off", "Mode: Off", "set_mode", { mode: "HeatingOff" }),
-      ];
+      return [fixed("all_off", "Turn all heating off", "heating_off")];
     case "vacuum":
       return [
         fixed("start", "Start cleaning", "start"),

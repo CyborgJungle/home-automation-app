@@ -19,6 +19,8 @@ import {
   type Tone,
   tapAction,
   powerOf,
+  roomOn,
+  roomTarget,
   membersOf,
   toneOf,
 } from "@/lib/devices";
@@ -176,7 +178,6 @@ export function DeviceSheet({ device, onClose }: { device: Device | null; onClos
 function DeviceControls({ device: d }: { device: Device }) {
   const { state: s, reachable, send } = useDevice(d);
   const power = powerOf(d, s);
-  const [setpoint, setSetpoint] = useState<number | null>(null);
   const go = (action: string, params: Record<string, unknown> = {}) => send(d, action, params);
   const position = num(s.position);
 
@@ -240,51 +241,25 @@ function DeviceControls({ device: d }: { device: Device }) {
 
       {d.kind === "zone" && !floorOf(s) && !s.floor_helper && (
         <>
+          {/* + and − turn the room on at that temperature; the icon turns it off. */}
           <div className="stat-row">
             <div className="stat">
               <span className="muted">Now</span>
               <strong>{num(s.temperature)?.toFixed(1) ?? "–"}°</strong>
             </div>
             <div className="stat">
-              <span className="muted">Target</span>
+              <span className="muted">{roomOn(s) ? "Heating to" : "Off · heat to"}</span>
               <div className="stepper">
-                <button className="round" disabled={!reachable} onClick={() => setSetpoint((v) => Math.max(5, (v ?? num(s.setpoint) ?? 20) - 0.5))} aria-label="Lower">
+                <button className="round" disabled={!reachable} onClick={() => go("room_on", { setpoint: Math.max(10, roomTarget(s) - 0.5) })} aria-label="Lower">
                   <Icon name="minus" size={18} />
                 </button>
-                <strong>{(setpoint ?? num(s.setpoint) ?? 20).toFixed(1)}°</strong>
-                <button className="round" disabled={!reachable} onClick={() => setSetpoint((v) => Math.min(30, (v ?? num(s.setpoint) ?? 20) + 0.5))} aria-label="Raise">
+                <strong>{roomTarget(s).toFixed(1)}°</strong>
+                <button className="round" disabled={!reachable} onClick={() => go("room_on", { setpoint: Math.min(30, roomTarget(s) + 0.5) })} aria-label="Raise">
                   <Icon name="plus" size={18} />
                 </button>
               </div>
             </div>
           </div>
-          <div className="button-row">
-            <button
-              className="pill"
-              disabled={!reachable || setpoint === null}
-              onClick={() => {
-                go("set_temperature", { setpoint, minutes: 60 });
-                setSetpoint(null);
-              }}
-            >
-              Hold 1 hour
-            </button>
-            <button
-              className="pill light"
-              disabled={!reachable || setpoint === null}
-              onClick={() => {
-                go("set_temperature", { setpoint });
-                setSetpoint(null);
-              }}
-            >
-              Keep
-            </button>
-          </div>
-          {s.mode && s.mode !== "FollowSchedule" && (
-            <button className="pill light wide" disabled={!reachable} onClick={() => go("follow_schedule")}>
-              Back to schedule{s.until ? ` (override until ${new Date(String(s.until)).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })})` : ""}
-            </button>
-          )}
           <ZoneInfo state={s} />
         </>
       )}
