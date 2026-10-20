@@ -66,6 +66,9 @@ export function createIkeaDisplay(cfg, hub, log, { fetchImpl = fetch } = {}) {
         brightness: Math.round(body.brightness * 100 / 255),
         baseBrightness: base,
         plugin: body.plugin ?? null,
+        plugin_name: body.plugins?.find((p) => p.id === body.plugin)?.name ?? null,
+        // What it can show, for the app's mode picker and automations.
+        plugins: Array.isArray(body.plugins) ? body.plugins.map(({ id, name }) => ({ id, name })) : [],
         brightnessScheduleEnabled: body.brightnessSchedule?.enabled === true,
       },
     });
@@ -113,8 +116,40 @@ export function createIkeaDisplay(cfg, hub, log, { fetchImpl = fetch } = {}) {
     if (!stopped) timer = setInterval(() => serial(refresh).catch(() => {}), POLL_MS);
   }
 
+  // Switch what the wall shows (a plugin: Big Clock, Weather, Snake, ...).
+  async function showPlugin(id) {
+    if (!Number.isInteger(id) || id < 1) throw new Error('Choose a mode for the display');
+    return serial(async () => {
+      try {
+        const result = await request(`/api/plugin?id=${id}`, 'PATCH');
+        if (result?.success === false || result?.error) throw new Error('Display rejected the mode');
+        await report(await info());
+      } catch (error) {
+        await failed(error);
+        throw error;
+      }
+    });
+  }
+
+  // A message that scrolls across once, then the wall goes back to its mode.
+  async function showMessage(text, repeat = 1) {
+    const clean = String(text ?? '').replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, 120);
+    if (!clean) throw new Error('Type a message to show');
+    const query = new URLSearchParams({ text: clean, repeat: String(Math.max(1, Math.min(10, Math.round(repeat)))) });
+    return serial(async () => {
+      try {
+        await request(`/api/message?${query}`);
+      } catch (error) {
+        await failed(error);
+        throw error;
+      }
+    });
+  }
+
   async function execute(deviceId, action, params = {}) {
     if (deviceId !== ID) throw new Error('Unknown IKEA display');
+    if (action === 'plugin') return showPlugin(Number(params.id));
+    if (action === 'message') return showMessage(params.text, params.repeat ?? 1);
     if (action !== 'set') throw new Error(`Unknown IKEA display action "${action}"`);
     if (Object.keys(params).some((key) => !['on', 'brightness'].includes(key)) ||
         (params.on === undefined && params.brightness === undefined) ||

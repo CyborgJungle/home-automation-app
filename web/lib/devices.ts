@@ -17,6 +17,7 @@ export type IconName =
   | "tv"
   | "speaker"
   | "vacuum"
+  | "display"
   | "bell"
   | "sensor"
   | "remote";
@@ -57,6 +58,7 @@ export const lowBattery = (s: State) => num(s.battery) !== null && num(s.battery
 export const toneOf = (d: Device): Tone => CATEGORIES.find((c) => c.kinds.includes(d.kind))?.tone ?? "sand";
 
 export function iconOf(d: Device): IconName {
+  if (d.integration === "ikeadisplay") return "display";
   switch (d.kind) {
     case "light":
       return "bulb";
@@ -189,6 +191,8 @@ export function describe(d: Device, s: State): string {
     case "light":
     case "group": {
       if (!s.on) return d.kind === "group" ? `Off · ${s.lights ?? 0} lights` : "Off";
+      // The LED wall: what it's showing matters more than its brightness.
+      if (d.integration === "ikeadisplay" && s.plugin_name) return `On · ${s.plugin_name}`;
       const b = num(s.brightness);
       return b !== null ? `On · ${b}%` : "On";
     }
@@ -416,6 +420,24 @@ function colourOptions(d: Device): ActionOption[] {
   return options;
 }
 
+// The LED wall can switch to one of its modes (Big Clock, Weather, ...).
+export const displayModes = (d: Device) =>
+  Array.isArray(d.state.plugins) ? (d.state.plugins as { id: number; name: string }[]) : [];
+
+function displayOptions(d: Device): ActionOption[] {
+  const modes = displayModes(d);
+  if (d.integration !== "ikeadisplay" || !modes.length) return [];
+  return [
+    {
+      id: "mode",
+      label: "Show mode",
+      action: "plugin",
+      params: (_, choice) => ({ id: Number(choice) }),
+      choices: modes.map((m) => ({ value: String(m.id), label: m.name })),
+    },
+  ];
+}
+
 export function actionOptions(d: Device): ActionOption[] {
   const fixed = (id: string, label: string, action: string, params: State = {}): ActionOption => ({
     id,
@@ -438,6 +460,7 @@ export function actionOptions(d: Device): ActionOption[] {
           number: { min: 1, max: 100, step: 1, unit: "%", default: 50 },
         },
         ...colourOptions(d),
+        ...displayOptions(d),
       ];
     case "plug":
       return [fixed("on", "Turn on", "set", { on: true }), onFor, fixed("off", "Turn off", "set", { on: false })];

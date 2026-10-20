@@ -137,3 +137,54 @@ test('a mismatched API cannot register a light', async (t) => {
   await assert.rejects(f.adapter.start(), /valid brightness/);
   assert.equal(f.rows.size, 0);
 });
+
+// A display fake that also knows the firmware's plugin and message endpoints.
+function modesFixture(t) {
+  const device = {
+    brightness: 200,
+    baseBrightness: 200,
+    brightnessSchedule: { enabled: false },
+    plugin: 33,
+    plugins: [{ id: 33, name: 'Big Clock' }, { id: 37, name: 'Weather' }],
+  };
+  const calls = [];
+  const rows = new Map();
+  const hub = {
+    devices: rows,
+    async upsertDevice(row) { rows.set(row.id, structuredClone(row)); },
+    async status() {},
+  };
+  const fetchImpl = async (url, options) => {
+    calls.push(`${options.method} ${url.pathname}${url.search}`);
+    if (url.pathname === '/api/plugin') {
+      device.plugin = Number(url.searchParams.get('id'));
+      return Response.json({ status: 'success' });
+    }
+    if (url.pathname === '/api/message') return Response.json({ status: 'success' });
+    return Response.json(device);
+  };
+  const adapter = createIkeaDisplay({ host: 'display.local' }, hub, logger, { fetchImpl });
+  t.after(() => adapter.stop());
+  return { adapter, rows, calls };
+}
+
+test('reports the current mode and the modes it can show', async (t) => {
+  const { adapter, rows } = modesFixture(t);
+  await adapter.start();
+  const { state } = rows.get(ID);
+  assert.equal(state.plugin, 33);
+  assert.equal(state.plugin_name, 'Big Clock');
+  assert.deepEqual(state.plugins, [{ id: 33, name: 'Big Clock' }, { id: 37, name: 'Weather' }]);
+});
+
+test('switches mode and shows a one-off message', async (t) => {
+  const { adapter, rows, calls } = modesFixture(t);
+  await adapter.start();
+  await adapter.execute(ID, 'plugin', { id: 37 });
+  assert.ok(calls.includes('PATCH /api/plugin?id=37'));
+  assert.equal(rows.get(ID).state.plugin_name, 'Weather');
+  await adapter.execute(ID, 'message', { text: 'Dinner is ready' });
+  assert.ok(calls.includes('GET /api/message?text=Dinner+is+ready&repeat=1'));
+  await assert.rejects(adapter.execute(ID, 'message', { text: '   ' }), /Type a message/);
+  await assert.rejects(adapter.execute(ID, 'plugin', { id: 0 }), /Choose a mode/);
+});

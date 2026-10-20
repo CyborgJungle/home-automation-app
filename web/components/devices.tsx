@@ -22,6 +22,7 @@ import {
   roomOn,
   roomTarget,
   roomLimits,
+  displayModes,
   membersOf,
   toneOf,
 } from "@/lib/devices";
@@ -228,6 +229,8 @@ function DeviceControls({ device: d }: { device: Device }) {
         </>
       )}
 
+      {d.integration === "ikeadisplay" && <DisplayControls device={d} state={s} reachable={reachable} go={go} />}
+
       {d.integration === "ikeadisplay" && s.brightnessScheduleEnabled === true && (
         <p className="muted small" role="status">
           Disable Scheduled brightness in the IKEA display app to use these controls. You can schedule the display here using automations.
@@ -352,6 +355,70 @@ function DeviceControls({ device: d }: { device: Device }) {
       {d.kind === "remote" && Array.isArray(s.controls) && <RemoteLinks ids={s.controls as string[]} />}
 
     </div>
+  );
+}
+
+// The LED wall: pick what it shows, or scroll a message across it once.
+function DisplayControls({
+  device: d,
+  state: s,
+  reachable,
+  go,
+}: {
+  device: Device;
+  state: Record<string, unknown>;
+  reachable: boolean;
+  go: (action: string, params?: Record<string, unknown>) => void;
+}) {
+  const [text, setText] = useState("");
+  const modes = displayModes(d);
+  return (
+    <>
+      {modes.length > 0 && (
+        <Picker
+          label="Showing"
+          placeholder="Choose a mode"
+          value={s.plugin != null ? String(s.plugin) : ""}
+          groups={[
+            {
+              title: "Modes",
+              items: modes.map((m) => ({
+                value: String(m.id),
+                label: m.name,
+                art: (
+                  <span className="picker-icon tone-yellow">
+                    <Icon name="display" size={16} />
+                  </span>
+                ),
+              })),
+            },
+          ]}
+          onChange={(v) => reachable && go("plugin", { id: Number(v) })}
+        />
+      )}
+      <form
+        className="message-row"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!text.trim() || !reachable) return;
+          go("message", { text: text.trim() });
+          setText("");
+        }}
+      >
+        <label className="field grow">
+          <input
+          value={text}
+          maxLength={120}
+          placeholder="Show a message…"
+          aria-label="Message for the display"
+          onChange={(e) => setText(e.target.value)}
+          />
+        </label>
+        <button className="pill small" type="submit" disabled={!reachable || !text.trim()}>
+          Show
+        </button>
+      </form>
+    </>
   );
 }
 

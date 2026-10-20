@@ -137,6 +137,13 @@ const PATHS: Record<string, React.ReactNode> = {
       <path d="M6 6v12" />
     </>
   ),
+  // The 16×16 LED wall: a frame with a few lit pixels.
+  display: (
+    <>
+      <rect x="3.5" y="3.5" width="17" height="17" rx="2.5" />
+      <path d="M8 8h.01M12 8h.01M16 8h.01M8 12h.01M16 12h.01M8 16h.01M12 16h.01M16 16h.01" strokeWidth="3" />
+    </>
+  ),
   // A robot vacuum from above: round body, laser turret, front bumper.
   vacuum: (
     <>

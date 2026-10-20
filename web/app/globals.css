@@ -2238,3 +2238,11 @@ button.chip.selected {
     transition: none !important;
   }
 }
+
+/* The LED wall's message box: a text field with its Show button. */
+.message-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
