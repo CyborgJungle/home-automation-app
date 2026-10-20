@@ -120,6 +120,7 @@ export function displayState(d: Device, commands: Command[]): State {
     const p = c.params as State;
     if (c.action === "set") state = { ...state, ...p };
     else if (c.action === "power") state.on = p.on;
+    else if (c.action === "toggle") state.on = !state.on;
     else if (c.action === "mute") state.muted = p.on;
     else if (c.action === "play" || c.action === "favorite") state.playing = true;
     else if (c.action === "pause") state.playing = false;
@@ -490,6 +491,7 @@ export function actionOptions(d: Device): ActionOption[] {
     case "group":
       return [
         fixed("on", "Turn on", "set", { on: true }),
+        fixed("toggle", "Toggle on/off", "toggle"),
         onFor,
         fixed("off", "Turn off", "set", { on: false }),
         {
@@ -503,7 +505,7 @@ export function actionOptions(d: Device): ActionOption[] {
         ...displayOptions(d),
       ];
     case "plug":
-      return [fixed("on", "Turn on", "set", { on: true }), onFor, fixed("off", "Turn off", "set", { on: false })];
+      return [fixed("on", "Turn on", "set", { on: true }), fixed("toggle", "Toggle on/off", "toggle"), onFor, fixed("off", "Turn off", "set", { on: false })];
     case "blind":
       if (d.integration === "brel") {
         return [
@@ -603,6 +605,7 @@ export function actionOptions(d: Device): ActionOption[] {
         return [
           fixed("on", "Turn on", "power", { on: true }),
           fixed("off", "Turn off", "power", { on: false }),
+          fixed("toggle", "Toggle on/off", "toggle"),
           fixed("play", "Play", "play"),
           fixed("pause", "Pause", "pause"),
           ...(apps.length
@@ -621,6 +624,7 @@ export function actionOptions(d: Device): ActionOption[] {
       return [
         fixed("on", "Turn on", "power", { on: true }),
         fixed("off", "Turn off", "power", { on: false }),
+        fixed("toggle", "Toggle on/off", "toggle"),
         fixed("mute", "Mute", "mute", { on: true }),
         fixed("unmute", "Unmute", "mute", { on: false }),
         {
