@@ -88,9 +88,15 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+/* The app is locked to the screen like a native app: no pinch- or
+   double-tap zoom, no sideways scroll, no bouncing past the edges.
+   Scrolling up and down (and inside scrollable rows) still works. */
 html {
   background: var(--cream);
   -webkit-text-size-adjust: 100%;
+  overflow-x: hidden;
+  overscroll-behavior: none;
+  touch-action: pan-x pan-y;
 }
 
 body {
@@ -102,7 +108,9 @@ body {
   font-optical-sizing: auto;
   font-size: 16px;
   line-height: 1.35;
-  overscroll-behavior-y: none;
+  overflow-x: hidden;
+  overscroll-behavior: none;
+  touch-action: pan-x pan-y;
 }
 
 button,
@@ -1314,13 +1322,16 @@ button.chip.selected {
 
 /* ----------------------------------------------------------- automations */
 
+/* One column that never grows wider than the screen, however long a name. */
 .stack {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px;
 }
 
 /* One compact row per automation: icon, name, switch. Tap to open it. */
 .auto-card {
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 12px;

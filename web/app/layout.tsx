@@ -18,6 +18,9 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  // Locked like a native app: no zooming in or out.
+  maximumScale: 1,
+  userScalable: false,
   viewportFit: "cover",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: THEME_COLORS.light },
@@ -33,6 +36,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <meta name="color-scheme" content="light dark" suppressHydrationWarning />
         <Script id="theme" strategy="beforeInteractive">
           {THEME_SCRIPT}
+        </Script>
+        {/* iOS can ignore "no zoom" in the viewport; stop the pinch itself. */}
+        <Script id="no-pinch" strategy="beforeInteractive">
+          {`document.addEventListener("gesturestart",function(e){e.preventDefault()},{passive:false});`}
         </Script>
       </head>
       <body>
