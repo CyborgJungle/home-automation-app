@@ -30,6 +30,7 @@ import type { Device } from "@/lib/supabase";
 import { colorCss, HUE_TRACK, hueName, LAMP_COLORS, selectedColor, whiteName, whiteTrack } from "@/lib/colors";
 
 export const INTEGRATION_NAMES: Record<Device["integration"], string> = {
+  ikeadisplay: "IKEA display",
   roborock: "Roborock",
   app: "Lamp group",
   dirigera: "IKEA DIRIGERA",
@@ -225,6 +226,12 @@ function DeviceControls({ device: d }: { device: Device }) {
           {d.kind !== "plug" && <LampColour state={s} reachable={reachable} go={go} />}
           {membersOf(d).length > 0 && <GroupLamps ids={membersOf(d)} />}
         </>
+      )}
+
+      {d.integration === "ikeadisplay" && s.brightnessScheduleEnabled === true && (
+        <p className="muted small" role="status">
+          Disable Scheduled brightness in the IKEA display app to use these controls. You can schedule the display here using automations.
+        </p>
       )}
 
       {d.kind === "zone" && floorOf(s) && <RoomTemperature state={s} reachable={reachable} go={go} />}

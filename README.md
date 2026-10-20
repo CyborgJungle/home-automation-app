@@ -105,6 +105,16 @@ sudo systemctl enable --now home-agent
 journalctl -u home-agent -f     # live log
 ```
 
+## Custom IKEA OBEGRÄNSAD display
+
+The ESP32 display uses the Pi directly, independently of the DIRIGERA hub. It
+appears under Lights with on/off and brightness, and can be used in scenes and
+automations. Off blanks the LEDs; the ESP32 stays powered for Wi-Fi and OTA.
+
+See [display setup and remote access](docs/ikea-display.md). The existing Vercel
+app and Pi connection provide remote control; the display itself remains on the
+home LAN.
+
 ## 4. Test
 
 Open the Vercel URL and sign in.

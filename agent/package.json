@@ -12,7 +12,8 @@
     "discover": "node --env-file=.env scripts/discover.js",
     "pair-tradfri": "node --env-file-if-exists=.env scripts/pair-tradfri.js",
     "check": "node --check src/index.js",
-    "pair-dirigera": "node --env-file-if-exists=.env scripts/pair-dirigera.js"
+    "pair-dirigera": "node --env-file-if-exists=.env scripts/pair-dirigera.js",
+    "test": "node --test test/*.test.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",
