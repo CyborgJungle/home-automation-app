@@ -74,6 +74,15 @@ export const config = {
       }
     : null,
 
+  ikeadisplay: env.IKEA_DISPLAY_HOST
+    ? {
+        host: env.IKEA_DISPLAY_HOST,
+        name: env.IKEA_DISPLAY_NAME || 'IKEA display',
+        room: env.IKEA_DISPLAY_ROOM || null,
+        stateFile: path.join(dataDir, 'ikea-display.json'),
+      }
+    : null,
+
   bravia: env.BRAVIA_HOST && env.BRAVIA_PSK
     ? {
         host: env.BRAVIA_HOST,

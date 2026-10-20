@@ -1,0 +1,42 @@
+name: IKEA display integration checks
+on:
+  pull_request:
+  push:
+    branches: ['feat/ikea-display']
+permissions:
+  contents: read
+jobs:
+  agent:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      # These mocked API tests use only Node's built-in modules. No .env,
+      # live Supabase connection, device or optional Eufy library is needed.
+      - name: Test display integration
+        working-directory: agent
+        run: npm test
+  web:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Install locked web dependencies
+        working-directory: web
+        run: npm ci --ignore-scripts
+      - name: Lint and typecheck
+        working-directory: web
+        run: |
+          npm run lint
+          npx next typegen
+          npx tsc --noEmit
