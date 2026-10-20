@@ -61,7 +61,7 @@ export function createBravia(cfg, hub, log) {
         }
         state.playing = await nowPlaying();
       }
-      hub.upsertDevice({ id: ID, integration: 'bravia', kind: 'tv', name: 'TV', room: null, online: true, state });
+      hub.upsertDevice({ id: ID, integration: 'bravia', kind: 'tv', name: cfg.name || 'Sony TV', room: null, online: true, state });
       if (lastError) log.info('TV reachable again');
       lastError = null;
       hub.status('bravia', true);

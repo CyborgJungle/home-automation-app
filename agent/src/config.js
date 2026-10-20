@@ -61,6 +61,7 @@ export const config = {
   apple: env.APPLE === 'on' || env.APPLE_DEVICES
     ? {
         names: env.APPLE_DEVICES || '',
+        displayNames: env.APPLE_NAMES || '',
         python: env.APPLE_PYTHON || path.join(os.homedir(), '.local/pyatv/bin/python'),
       }
     : null,
@@ -85,6 +86,7 @@ export const config = {
 
   bravia: env.BRAVIA_HOST && env.BRAVIA_PSK
     ? {
+        name: env.BRAVIA_NAME || 'Sony TV',
         host: env.BRAVIA_HOST,
         psk: env.BRAVIA_PSK,
       }

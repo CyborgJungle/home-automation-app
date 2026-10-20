@@ -12,7 +12,18 @@ const BRIDGE = path.join(path.dirname(fileURLToPath(import.meta.url)), '../../ap
 const RESTART_MS = 15_000;
 const COMMAND_TIMEOUT_MS = 15_000;
 
+// APPLE_NAMES=Woonkamer=Apple TV,Kantoor=HomePod: what the app calls each one.
+function parseNames(text = '') {
+  return Object.fromEntries(
+    text
+      .split(',')
+      .map((pair) => pair.split('=').map((s) => s.trim()))
+      .filter(([from, to]) => from && to),
+  );
+}
+
 export function createApple(cfg, hub, log) {
+  const names = parseNames(cfg.displayNames);
   let child = null;
   let stopped = false;
   let nextReq = 1;
@@ -35,7 +46,7 @@ export function createApple(cfg, hub, log) {
         id: idOf(msg.id),
         integration: 'apple',
         kind: msg.kind,
-        name: msg.name,
+        name: names[msg.name] ?? msg.name,
         room: msg.name, // Apple names devices after their room
         online: msg.online,
         state: msg.state,
