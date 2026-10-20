@@ -383,6 +383,9 @@ export function triggerOptions(d: Device): TriggerOption[] {
       ];
     case "remote":
       if (d.integration !== "dirigera") return [battery];
+      // Through the IKEA hub the round TRÅDFRI remote reports every button,
+      // and holding, as the same single press.
+      if (/^TRADFRI remote control/i.test(String(d.state.model ?? ""))) return [press("press", "is pressed", "singlePress"), battery];
       return [press("press", "is pressed", "singlePress"), press("double", "is double-pressed", "doublePress"), press("long", "is held", "longPress"), battery];
     case "doorbell":
       return [battery];

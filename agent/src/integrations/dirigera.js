@@ -101,6 +101,9 @@ export function createDirigera(cfg, hub, log) {
       if (batteryOf(a) != null) state.battery = batteryOf(a);
     } else if (kind === 'remote') {
       if (batteryOf(a) != null) state.battery = batteryOf(a);
+      // The model decides what the hub passes on (the round TRÅDFRI remote
+      // reports every button as one plain press).
+      if (a.model) state.model = a.model;
       const press = lastPress.get(d.id);
       if (press) Object.assign(state, press);
       // Lamps this remote switches by itself (the hub stores the link on each lamp).
