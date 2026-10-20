@@ -7,8 +7,11 @@
 
 import { execFile } from 'node:child_process';
 
-const POLL_MS = 10_000;
-const MISSES_FOR_ASLEEP = 2; // one dropped ping isn't sleep
+// A ping is a single tiny packet, so checking often costs the Pi next to
+// nothing; two misses in a row (one dropped packet isn't sleep) means a
+// device is seen asleep 2–5 seconds after it really is.
+const POLL_MS = 2000;
+const MISSES_FOR_ASLEEP = 2;
 
 function parseDevices(text = '') {
   return text
@@ -28,6 +31,7 @@ export function createPresence(cfg, hub, log) {
   const misses = new Map();
   const awake = new Map();
   let timer = null;
+  let checking = false;
 
   const idOf = (host) => `presence:${host.replace(/\./g, '-')}`;
 
@@ -49,8 +53,15 @@ export function createPresence(cfg, hub, log) {
     });
   }
 
+  // Never start a round while the last one is still waiting for answers.
   async function poll() {
-    await Promise.all(devices.map(check));
+    if (checking) return;
+    checking = true;
+    try {
+      await Promise.all(devices.map(check));
+    } finally {
+      checking = false;
+    }
   }
 
   async function start() {
