@@ -283,7 +283,11 @@ export function createDirigera(cfg, hub, log) {
       // A colour or white setting only goes to the lamps that can show it.
       if (attributes.colorHue != null) lights = lights.filter((d) => can(d, 'colorHue'));
       else if (attributes.colorTemperature != null) lights = lights.filter((d) => can(d, 'colorTemperature'));
-      if (!lights.length) throw new Error('No reachable lamps in that room can do this');
+      if (!lights.length) {
+        // Lamps without power are already off, so "off" has nothing left to do.
+        if (attributes.isOn === false) return;
+        throw new Error('No reachable lamps in that room can do this');
+      }
       const results = await Promise.allSettled(lights.map((d) => patch(d, attributes)));
       const failed = results.filter((r) => r.status === 'rejected');
       if (failed.length === lights.length) throw failed[0].reason;

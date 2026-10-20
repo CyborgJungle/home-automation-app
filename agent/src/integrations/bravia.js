@@ -133,7 +133,17 @@ export function createBravia(cfg, hub, log) {
       // An exact level, e.g. {"volume": 15}.
       const level = Math.max(0, Math.min(100, Math.round(Number(params.volume))));
       const set = () => rpc('audio', 'setAudioVolume', [{ target: 'speaker', volume: String(level) }]);
-      await set();
+      // Right after switching on, the TV answers "Not Found" (404) or "Illegal
+      // State" (7) until its audio is up; keep trying for about 10 seconds.
+      for (let wait = 500; ; wait *= 2) {
+        try {
+          await set();
+          break;
+        } catch (e) {
+          if (![404, 7, 40000].includes(e.code) || wait > 4000) throw e;
+          await new Promise((r) => setTimeout(r, wait));
+        }
+      }
       setTimeout(async () => {
         try {
           const volumes = await rpc('audio', 'getVolumeInformation');

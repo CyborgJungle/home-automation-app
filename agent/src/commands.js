@@ -10,8 +10,6 @@ const MAX_AGE_MS = 2 * 60_000;
 const prefixOf = (cmd) => cmd.device_id.split(':')[0];
 
 export function startCommandLoop(supabase, integrations, log) {
-  let draining = false;
-  let again = false;
 
   async function finish(id, status, error = null) {
     await supabase
@@ -51,48 +49,45 @@ export function startCommandLoop(supabase, integrations, log) {
     }
   }
 
+  // evohome commands are handled by the Supabase function, not the Pi.
+  // IKEA lamps are switched in parallel (a scene lands at once); each device
+  // keeps its own order, and other integrations run one by one. Lanes don't
+  // wait for each other, so a slow TV or vacuum never holds up a lamp.
+  const lanes = new Map();
+  const queued = new Set();
+
+  function enqueue(cmd) {
+    if (cmd.status !== 'pending' || queued.has(cmd.id) || !AGENT_INTEGRATIONS.includes(prefixOf(cmd))) return;
+    queued.add(cmd.id);
+    const lane = prefixOf(cmd) === 'dirigera' ? cmd.device_id : prefixOf(cmd);
+    const next = (lanes.get(lane) ?? Promise.resolve())
+      .then(() => run(cmd))
+      .catch((e) => log.warn(`#${cmd.id} failed:`, e.message))
+      .finally(() => {
+        queued.delete(cmd.id);
+        if (lanes.get(lane) === next) lanes.delete(lane);
+      });
+    lanes.set(lane, next);
+  }
+
+  // Catches anything realtime missed (e.g. while reconnecting).
   async function drain() {
-    if (draining) {
-      again = true;
-      return;
-    }
-    draining = true;
-    try {
-      do {
-        again = false;
-        const { data, error } = await supabase
-          .from('commands')
-          .select('*')
-          .eq('status', 'pending')
-          .order('created_at')
-          .limit(20);
-        if (error) {
-          log.warn('fetching commands failed:', error.message);
-          break;
-        }
-        // evohome commands are handled by the Supabase function, not the Pi.
-        // IKEA lamps are switched in parallel (a scene lands at once); each
-        // device keeps its own order, and other integrations run one by one.
-        const lanes = new Map();
-        for (const cmd of data) {
-          if (!AGENT_INTEGRATIONS.includes(prefixOf(cmd))) continue;
-          const lane = prefixOf(cmd) === 'dirigera' ? cmd.device_id : prefixOf(cmd);
-          lanes.set(lane, [...(lanes.get(lane) ?? []), cmd]);
-        }
-        await Promise.all(
-          [...lanes.values()].map(async (cmds) => {
-            for (const cmd of cmds) await run(cmd);
-          }),
-        );
-      } while (again);
-    } finally {
-      draining = false;
-    }
+    const { data, error } = await supabase
+      .from('commands')
+      .select('*')
+      .eq('status', 'pending')
+      .order('created_at')
+      .limit(20);
+    if (error) log.warn('fetching commands failed:', error.message);
+    else data.forEach(enqueue);
   }
 
   supabase
     .channel('agent-commands')
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'commands' }, drain)
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'commands' }, (msg) =>
+      // The new row comes with the message: run it without asking for it again.
+      msg.new?.id ? enqueue(msg.new) : drain(),
+    )
     .subscribe((status) => log.info('realtime:', status));
 
   setInterval(drain, POLL_MS);
