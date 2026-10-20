@@ -19,6 +19,9 @@ export function createIkeaDisplay(cfg, hub, log, { fetchImpl = fetch } = {}) {
   let restoreBrightness = 255;
   let lastError = null;
   let queue = Promise.resolve();
+  // The last status the wall reported, so a command doesn't have to ask first.
+  let latest = null;
+  let latestAt = 0;
 
   // Keep polls and commands in order, including an Off followed quickly by On.
   function serial(task) {
@@ -56,6 +59,8 @@ export function createIkeaDisplay(cfg, hub, log, { fetchImpl = fetch } = {}) {
   }
 
   async function report(body) {
+    latest = body;
+    latestAt = Date.now();
     const base = body.baseBrightness ?? body.brightness;
     await remember(base);
     await hub.upsertDevice({
@@ -84,6 +89,7 @@ export function createIkeaDisplay(cfg, hub, log, { fetchImpl = fetch } = {}) {
     if (message !== lastError) log.warn(message);
     lastError = message;
     const row = hub.devices.get(ID);
+    latest = null;
     if (row?.online) await hub.upsertDevice({ ...row, online: false });
     await hub.status('ikeadisplay', false, message);
   }
@@ -158,9 +164,9 @@ export function createIkeaDisplay(cfg, hub, log, { fetchImpl = fetch } = {}) {
       throw new Error('Display set needs on (boolean) and/or brightness (0–100 percent)');
     }
     return serial(async () => {
-      let current;
+      let current = Date.now() - latestAt < POLL_MS * 1.5 ? latest : null;
       try {
-        current = await info();
+        current ??= await info();
       } catch (error) {
         await failed(error);
         throw error;
