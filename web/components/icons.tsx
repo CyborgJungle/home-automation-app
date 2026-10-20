@@ -137,6 +137,13 @@ const PATHS: Record<string, React.ReactNode> = {
       <path d="M6 6v12" />
     </>
   ),
+  // A game controller.
+  console: (
+    <>
+      <path d="M7.5 8h9a4.5 4.5 0 0 1 4.3 5.8l-1 3.3a2 2 0 0 1-3.4.7L14.5 16h-5l-1.9 1.8a2 2 0 0 1-3.4-.7l-1-3.3A4.5 4.5 0 0 1 7.5 8z" />
+      <path d="M8 11v3M6.5 12.5h3M15.5 12h.01M17.5 13.5h.01" />
+    </>
+  ),
   // The 16×16 LED wall: a frame with a few lit pixels.
   display: (
     <>

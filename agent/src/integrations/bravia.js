@@ -9,6 +9,10 @@
 const POLL_MS = 4000;
 // While it starts up the TV may put its own volume back; check and set again.
 const VOLUME_RECHECK_MS = 3000;
+// After switching inputs, remember the previous one this long. So "the TV
+// was on HDMI 2 until just now" still holds when a console going to sleep
+// makes the TV jump to another input.
+const INPUT_MEMORY_MS = 2 * 60_000;
 const TIMEOUT_MS = 4000;
 const ID = 'bravia:tv';
 
@@ -16,6 +20,9 @@ export function createBravia(cfg, hub, log) {
   let model = null;
   let pollTimer = null;
   let lastError = null;
+  let input = null; // e.g. "HDMI 2", "Apple TV"
+  let inputWas = null;
+  let inputWasUntil = 0;
 
   async function rpc(service, method, params = [], version = '1.0') {
     const res = await fetch(`http://${cfg.host}/sony/${service}`, {
@@ -36,16 +43,24 @@ export function createBravia(cfg, hub, log) {
     return body.result?.[0];
   }
 
-  // What's on screen: an input or channel name. Inside an app the TV answers
-  // with "Illegal State" (code 7), so show nothing then.
+  // What's on screen: an input or channel. Inside an app the TV answers with
+  // "Illegal State" (code 7), so there's no input then.
   async function nowPlaying() {
     try {
-      const info = await rpc('avContent', 'getPlayingContentInfo');
-      return info?.title || info?.source || null;
+      return (await rpc('avContent', 'getPlayingContentInfo')) ?? null;
     } catch (e) {
       if (e.code === 7) return null;
       throw e;
     }
+  }
+
+  function trackInput(next) {
+    if (next === input) return;
+    if (input) {
+      inputWas = input;
+      inputWasUntil = Date.now() + INPUT_MEMORY_MS;
+    }
+    input = next;
   }
 
   async function refresh() {
@@ -59,8 +74,14 @@ export function createBravia(cfg, hub, log) {
           state.volume = speaker.volume;
           state.muted = Boolean(speaker.mute);
         }
-        state.playing = await nowPlaying();
+        const info = await nowPlaying();
+        state.playing = info?.title || info?.source || null;
+        trackInput(info?.title ?? null);
+      } else {
+        trackInput(null);
       }
+      state.input = input;
+      state.input_was = Date.now() < inputWasUntil ? inputWas : null;
       hub.upsertDevice({ id: ID, integration: 'bravia', kind: 'tv', name: cfg.name || 'Sony TV', room: null, online: true, state });
       if (lastError) log.info('TV reachable again');
       lastError = null;

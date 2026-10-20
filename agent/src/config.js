@@ -84,6 +84,10 @@ export const config = {
       }
     : null,
 
+  // Devices only watched on the network (awake/asleep), e.g. a game console:
+  // PRESENCE_DEVICES=Steam machine=192.168.1.20
+  presence: env.PRESENCE_DEVICES ? { devices: env.PRESENCE_DEVICES } : null,
+
   bravia: env.BRAVIA_HOST && env.BRAVIA_PSK
     ? {
         name: env.BRAVIA_NAME || 'Sony TV',

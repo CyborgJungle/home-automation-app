@@ -18,6 +18,7 @@ export type IconName =
   | "speaker"
   | "vacuum"
   | "display"
+  | "console"
   | "bell"
   | "sensor"
   | "remote";
@@ -27,13 +28,13 @@ type State = Record<string, unknown>;
 export const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
 
 // Integrations that need the Raspberry Pi to be online.
-export const ON_PI: Device["integration"][] = ["ikeadisplay", "roborock", "app", "dirigera", "tradfri", "eufy", "brel", "bravia", "sonos", "apple"];
+export const ON_PI: Device["integration"][] = ["presence", "ikeadisplay", "roborock", "app", "dirigera", "tradfri", "eufy", "brel", "bravia", "sonos", "apple"];
 
 export const CATEGORIES: { id: string; title: string; kinds: string[]; tone: Tone }[] = [
   { id: "lights", title: "Lights", kinds: ["group", "light"], tone: "yellow" },
   { id: "climate", title: "Climate", kinds: ["zone", "heating"], tone: "peach" },
   { id: "blinds", title: "Blinds", kinds: ["blind"], tone: "lavender" },
-  { id: "media", title: "Media", kinds: ["tv", "speaker"], tone: "pink" },
+  { id: "media", title: "Media", kinds: ["tv", "speaker", "console"], tone: "pink" },
   { id: "cleaning", title: "Cleaning", kinds: ["vacuum"], tone: "aqua" },
   { id: "plugs", title: "Plugs", kinds: ["plug"], tone: "mint" },
   { id: "doorbell", title: "Doorbell", kinds: ["doorbell"], tone: "sage" },
@@ -78,6 +79,8 @@ export function iconOf(d: Device): IconName {
       return "speaker";
     case "vacuum":
       return "vacuum";
+    case "console":
+      return "console";
     case "doorbell":
       return "bell";
     case "remote":
@@ -170,6 +173,8 @@ export function isActive(d: Device, s: State) {
       return Boolean(s.playing);
     case "vacuum":
       return Boolean(s.cleaning);
+    case "console":
+      return Boolean(s.awake);
     default:
       return false;
   }
@@ -221,6 +226,8 @@ export function describe(d: Device, s: State): string {
       const what = s.title ? [s.title, s.artist].filter(Boolean).join(" — ") : s.source;
       return [s.playing ? "Playing" : "Paused", what].filter(Boolean).join(" · ");
     }
+    case "console":
+      return s.awake ? "Awake" : "Asleep";
     case "vacuum": {
       const bits = [String(s.status ?? "Idle")];
       if (num(s.battery) !== null && !s.cleaning) bits.push(`${s.battery}%`);
@@ -306,7 +313,22 @@ export type TriggerOption = {
 const battery: TriggerOption = { id: "battery_low", label: "battery drops below", key: "battery", op: "lt", number: { min: 5, max: 50, step: 5, unit: "%", default: 15 } };
 const press = (id: string, label: string, pattern: string): TriggerOption => ({ id, label, key: "", op: "eq", event: "button.press", pattern });
 
+// The Sony TV's inputs, as rules: "is on HDMI 2", and "just left HDMI 2"
+// (the TV remembers its previous input for two minutes after a switch).
+const tvInputs = (): TriggerOption[] =>
+  [1, 2, 3, 4].flatMap((n) => [
+    { id: `input_${n}`, label: `is on HDMI ${n}`, key: "input", op: "eq" as const, value: `HDMI ${n}` },
+    { id: `was_input_${n}`, label: `just left HDMI ${n}`, key: "input_was", op: "eq" as const, value: `HDMI ${n}` },
+  ]);
+
 export function triggerOptions(d: Device): TriggerOption[] {
+  if (d.integration === "bravia") {
+    return [
+      { id: "on", label: "turns on", key: "on", op: "eq", value: true },
+      { id: "off", label: "turns off", key: "on", op: "eq", value: false },
+      ...tvInputs(),
+    ];
+  }
   switch (d.kind) {
     case "light":
     case "plug":
@@ -315,6 +337,11 @@ export function triggerOptions(d: Device): TriggerOption[] {
       return [
         { id: "on", label: "turns on", key: "on", op: "eq", value: true },
         { id: "off", label: "turns off", key: "on", op: "eq", value: false },
+      ];
+    case "console":
+      return [
+        { id: "wakes", label: "wakes up", key: "awake", op: "eq", value: true },
+        { id: "sleeps", label: "goes to sleep", key: "awake", op: "eq", value: false },
       ];
     case "vacuum":
       return [

@@ -31,6 +31,7 @@ import type { Device } from "@/lib/supabase";
 import { colorCss, HUE_TRACK, hueName, LAMP_COLORS, selectedColor, whiteName, whiteTrack } from "@/lib/colors";
 
 export const INTEGRATION_NAMES: Record<Device["integration"], string> = {
+  presence: "Seen on the network",
   ikeadisplay: "IKEA display",
   roborock: "Roborock",
   app: "Lamp group",

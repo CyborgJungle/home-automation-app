@@ -9,7 +9,7 @@ export function createClient() {
 
 export type Device = {
   id: string;
-  integration: "ikeadisplay" | "roborock" | "app" | "dirigera" | "tradfri" | "evohome" | "eufy" | "brel" | "bravia" | "sonos" | "apple";
+  integration: "presence" | "ikeadisplay" | "roborock" | "app" | "dirigera" | "tradfri" | "evohome" | "eufy" | "brel" | "bravia" | "sonos" | "apple";
   kind: string;
   name: string;
   room: string | null;

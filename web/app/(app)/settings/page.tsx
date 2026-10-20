@@ -9,6 +9,7 @@ import { useTheme } from "@/lib/theme";
 
 // Health checks run on the Pi except evohome, which runs in Supabase.
 const WHERE: Record<Device["integration"], string> = {
+  presence: "Pi",
   ikeadisplay: "Pi",
   roborock: "Pi",
   app: "Pi",
