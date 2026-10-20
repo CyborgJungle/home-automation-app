@@ -315,18 +315,26 @@ const press = (id: string, label: string, pattern: string): TriggerOption => ({ 
 
 // The Sony TV's inputs, as rules: "is on HDMI 2", and "just left HDMI 2"
 // (the TV remembers its previous input for two minutes after a switch).
-const tvInputs = (): TriggerOption[] =>
-  [1, 2, 3, 4].flatMap((n) => [
-    { id: `input_${n}`, label: `is on HDMI ${n}`, key: "input", op: "eq" as const, value: `HDMI ${n}` },
-    { id: `was_input_${n}`, label: `just left HDMI ${n}`, key: "input_was", op: "eq" as const, value: `HDMI ${n}` },
-  ]);
+// Devices on HDMI-CEC show up by their own name ("Steam Machine").
+const tvInputs = (d: Device): TriggerOption[] => {
+  const seen = Array.isArray(d.state.inputs) ? (d.state.inputs as string[]) : [];
+  const names = [...new Set([...seen, "HDMI 1", "HDMI 2", "HDMI 3", "HDMI 4"])];
+  const slug = (n: string) => n.toLowerCase().replace(/[^a-z0-9]+/g, "_");
+  return names.flatMap((n) => {
+    const hdmi = n.match(/^HDMI (\d)$/);
+    return [
+      { id: hdmi ? `input_${hdmi[1]}` : `input_${slug(n)}`, label: `is on ${n}`, key: "input", op: "eq" as const, value: n },
+      { id: hdmi ? `was_input_${hdmi[1]}` : `was_input_${slug(n)}`, label: `just left ${n}`, key: "input_was", op: "eq" as const, value: n },
+    ];
+  });
+};
 
 export function triggerOptions(d: Device): TriggerOption[] {
   if (d.integration === "bravia") {
     return [
       { id: "on", label: "turns on", key: "on", op: "eq", value: true },
       { id: "off", label: "turns off", key: "on", op: "eq", value: false },
-      ...tvInputs(),
+      ...tvInputs(d),
     ];
   }
   switch (d.kind) {

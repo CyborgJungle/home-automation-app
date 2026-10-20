@@ -23,6 +23,10 @@ export function createBravia(cfg, hub, log) {
   let input = null; // e.g. "HDMI 2", "Apple TV"
   let inputWas = null;
   let inputWasUntil = 0;
+  // Every input name seen, e.g. "HDMI 2", and the names devices announce over
+  // HDMI-CEC ("Apple TV", "Steam Machine"), for the automation builder.
+  const inputNames = new Set();
+  let inputsCheckedAt = 0;
 
   async function rpc(service, method, params = [], version = '1.0') {
     const res = await fetch(`http://${cfg.host}/sony/${service}`, {
@@ -54,7 +58,19 @@ export function createBravia(cfg, hub, log) {
     }
   }
 
+  async function learnInputs() {
+    if (Date.now() - inputsCheckedAt < 60_000) return;
+    inputsCheckedAt = Date.now();
+    try {
+      const list = await rpc('avContent', 'getCurrentExternalInputsStatus', [], '1.1');
+      for (const i of list ?? []) if (i.connection && i.title) inputNames.add(i.title);
+    } catch (e) {
+      log.warn('reading inputs failed:', e.message);
+    }
+  }
+
   function trackInput(next) {
+    if (next) inputNames.add(next);
     if (next === input) return;
     if (input) {
       inputWas = input;
@@ -74,6 +90,7 @@ export function createBravia(cfg, hub, log) {
           state.volume = speaker.volume;
           state.muted = Boolean(speaker.mute);
         }
+        await learnInputs();
         const info = await nowPlaying();
         state.playing = info?.title || info?.source || null;
         trackInput(info?.title ?? null);
@@ -82,6 +99,7 @@ export function createBravia(cfg, hub, log) {
       }
       state.input = input;
       state.input_was = Date.now() < inputWasUntil ? inputWas : null;
+      state.inputs = [...inputNames].sort();
       hub.upsertDevice({ id: ID, integration: 'bravia', kind: 'tv', name: cfg.name || 'Sony TV', room: null, online: true, state });
       if (lastError) log.info('TV reachable again');
       lastError = null;
