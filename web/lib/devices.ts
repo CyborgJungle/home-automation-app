@@ -238,6 +238,8 @@ export function describe(d: Device, s: State): string {
     case "sensor":
       if (typeof s.motion === "boolean") return s.motion ? "Motion" : "Clear";
       return num(s.battery) !== null ? `Battery ${s.battery}%` : "";
+    case "remote":
+      return num(s.battery) !== null ? `Battery ${s.battery}%` : "Battery unknown";
     default:
       return num(s.battery) !== null ? `Battery ${s.battery}%` : "";
   }

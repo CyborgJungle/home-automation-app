@@ -27,7 +27,7 @@ import {
   toneOf,
 } from "@/lib/devices";
 import { useHome } from "@/lib/home";
-import type { Device } from "@/lib/supabase";
+import { createClient, type Device } from "@/lib/supabase";
 import { colorCss, HUE_TRACK, hueName, LAMP_COLORS, selectedColor, whiteName, whiteTrack } from "@/lib/colors";
 
 export const INTEGRATION_NAMES: Record<Device["integration"], string> = {
@@ -327,10 +327,12 @@ function DeviceControls({ device: d }: { device: Device }) {
 
       {(d.kind === "doorbell" || d.kind === "sensor" || d.kind === "remote") && (
         <div className="stat-row">
-          {num(s.battery) !== null && (
+          {/* Remotes always show both stats, so every remote card looks the
+              same; "–" when the hub doesn't report the battery. */}
+          {(num(s.battery) !== null || d.kind === "remote") && (
             <div className="stat">
               <span className="muted">Battery</span>
-              <strong>{String(s.battery)}%</strong>
+              <strong>{num(s.battery) !== null ? `${s.battery}%` : "–"}</strong>
             </div>
           )}
           {d.kind === "sensor" && typeof s.motion === "boolean" && (
@@ -339,12 +341,7 @@ function DeviceControls({ device: d }: { device: Device }) {
               <strong>{s.motion ? "Detected" : "Clear"}</strong>
             </div>
           )}
-          {d.kind === "remote" && d.integration === "dirigera" && (
-            <div className="stat">
-              <span className="muted">Last press</span>
-              <strong className="small-strong">{s.last_press_at ? timeAgo(String(s.last_press_at)) : "–"}</strong>
-            </div>
-          )}
+          {d.kind === "remote" && <LastPress deviceId={d.id} />}
           {d.kind === "doorbell" && (
             <div className="stat">
               <span className="muted">Last ring</span>
@@ -488,6 +485,37 @@ function VacuumControls({
       </div>
       {num(s.error) ? <p className="muted small">The vacuum reports error {String(s.error)}. Check the Roborock app.</p> : null}
     </>
+  );
+}
+
+// When a remote was last pressed, from the stored presses (so it survives the
+// Pi restarting), kept live as new presses come in.
+function LastPress({ deviceId }: { deviceId: string }) {
+  const { events } = useHome();
+  const [stored, setStored] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    createClient()
+      .from("events")
+      .select("created_at")
+      .eq("device_id", deviceId)
+      .eq("type", "button.press")
+      .order("id", { ascending: false })
+      .limit(1)
+      .then(({ data }) => {
+        if (!cancelled) setStored(data?.[0]?.created_at ?? null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [deviceId]);
+  const live = events.find((e) => e.device_id === deviceId && e.type === "button.press")?.created_at ?? null;
+  const last = [stored, live].filter((t): t is string => Boolean(t)).sort().pop() ?? null;
+  return (
+    <div className="stat">
+      <span className="muted">Last press</span>
+      <strong className="small-strong">{last ? timeAgo(last) : "–"}</strong>
+    </div>
   );
 }
 
