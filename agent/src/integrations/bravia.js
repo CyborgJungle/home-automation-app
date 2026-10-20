@@ -5,7 +5,10 @@
 // Authentication "Normal and Pre-Shared Key", set a Pre-Shared Key, and turn on
 // Remote start so the TV can be switched on from standby.
 
-const POLL_MS = 10_000;
+// Often enough to notice the TV coming on (say via the Apple TV) within seconds.
+const POLL_MS = 4000;
+// While it starts up the TV may put its own volume back; check and set again.
+const VOLUME_RECHECK_MS = 3000;
 const TIMEOUT_MS = 4000;
 const ID = 'bravia:tv';
 
@@ -66,8 +69,10 @@ export function createBravia(cfg, hub, log) {
       const message = e.name === 'TimeoutError' || e.cause ? 'TV not reachable (unplugged, or Remote start is off?)' : e.message;
       if (message !== lastError) log.warn(message);
       lastError = message;
+      // Unreachable usually means deep standby: count it as off, so switching
+      // it on again is seen as "turns on".
       const row = hub.devices.get(ID);
-      if (row?.online) hub.upsertDevice({ ...row, online: false });
+      if (row?.online || row?.state?.on) hub.upsertDevice({ ...row, online: false, state: { ...row.state, on: false } });
       hub.status('bravia', false, message);
     }
   }
@@ -85,9 +90,27 @@ export function createBravia(cfg, hub, log) {
   async function execute(deviceId, action, params) {
     if (action === 'power') {
       await rpc('system', 'setPowerStatus', [{ status: Boolean(params.on) }]);
+    } else if (action === 'volume' && params.volume != null) {
+      // An exact level, e.g. {"volume": 15}.
+      const level = Math.max(0, Math.min(100, Math.round(Number(params.volume))));
+      const set = () => rpc('audio', 'setAudioVolume', [{ target: 'speaker', volume: String(level) }]);
+      await set();
+      setTimeout(async () => {
+        try {
+          const volumes = await rpc('audio', 'getVolumeInformation');
+          const speaker = volumes?.find((v) => v.target === 'speaker') ?? volumes?.[0];
+          if (speaker && speaker.volume !== level) {
+            log.info(`TV went to volume ${speaker.volume} while starting; setting ${level} again`);
+            await set();
+            refresh();
+          }
+        } catch (e) {
+          log.warn('volume re-check failed:', e.message);
+        }
+      }, VOLUME_RECHECK_MS);
     } else if (action === 'volume') {
       const delta = Math.round(Number(params.delta));
-      if (!delta) throw new Error('volume needs a delta, e.g. {"delta": 2}');
+      if (!delta) throw new Error('volume needs a delta (e.g. {"delta": 2}) or a level (e.g. {"volume": 15})');
       await rpc('audio', 'setAudioVolume', [{ target: 'speaker', volume: `${delta > 0 ? '+' : ''}${delta}` }]);
     } else if (action === 'mute') {
       await rpc('audio', 'setAudioMute', [{ status: Boolean(params.on) }]);

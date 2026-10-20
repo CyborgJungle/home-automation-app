@@ -560,6 +560,13 @@ export function actionOptions(d: Device): ActionOption[] {
         fixed("off", "Turn off", "power", { on: false }),
         fixed("mute", "Mute", "mute", { on: true }),
         fixed("unmute", "Unmute", "mute", { on: false }),
+        {
+          id: "volume",
+          label: "Set volume to",
+          action: "volume",
+          params: (n) => ({ volume: n }),
+          number: { min: 0, max: 50, step: 1, unit: "", default: 15 },
+        },
       ];
     }
     default:
