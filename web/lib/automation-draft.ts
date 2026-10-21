@@ -21,6 +21,7 @@ export type RuleDraft = {
   until: string;
   days: number[];
   device: string;
+  becomes: boolean; // device rules: the moment it changes, not its state
   option: string;
   value: number | null;
   weatherOption: string;
@@ -53,6 +54,7 @@ export function emptyRule(category: Category = "time"): RuleDraft {
     until: "22:00",
     days: [1, 2, 3, 4, 5],
     device: "",
+    becomes: true,
     option: "",
     value: null,
     weatherOption: "temperature_below",
@@ -123,6 +125,7 @@ function ruleDraft(t: AutomationRule, devices: Device[]): RuleDraft {
       return {
         ...d,
         device: t.device_id,
+        becomes: t.mode === "becomes",
         option: t.option ?? option?.id ?? "",
         value: typeof t.value === "number" ? t.value : null,
       };
@@ -236,6 +239,7 @@ export function buildRule(
     op: option.op,
     value,
     option: option.id,
+    ...(d.becomes ? { mode: "becomes" as const } : {}),
   };
 }
 

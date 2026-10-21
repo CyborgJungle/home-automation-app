@@ -60,7 +60,7 @@ export type AutomationRule =
   | { type: "sun"; event: "sunrise" | "sunset"; offset_minutes: number; days: number[] }
   // While it's dark: from sunset (+/- minutes) until sunrise (+/- minutes).
   | { type: "dark"; sunset_offset_minutes: number; sunrise_offset_minutes: number }
-  | { type: "device"; device_id: string; key: string; op: "eq" | "ne" | "lt" | "gt"; value: unknown; option?: string }
+  | { type: "device"; device_id: string; key: string; op: "eq" | "ne" | "lt" | "gt"; value: unknown; option?: string; mode?: "becomes" }
   | { type: "event"; event: string; device_id?: string; pattern?: string; option?: string };
 
 export type AutomationTrigger = AutomationRule | { type: "logic"; groups: AutomationRule[][] };

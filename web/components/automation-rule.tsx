@@ -194,6 +194,23 @@ export function AutomationRuleFields({
               }
             />
           )}
+          {rule.when === "device" && option && (
+            <ChipChoice
+              label="When"
+              value={rule.becomes ? "becomes" : "is"}
+              options={[
+                {
+                  value: "becomes",
+                  label:
+                    deviceStateLabel(option.label) === option.label
+                      ? `Becomes: ${option.label}`
+                      : option.label.replace(/^./, (c) => c.toUpperCase()),
+                },
+                { value: "is", label: deviceStateLabel(option.label).replace(/^./, (c) => c.toUpperCase()) },
+              ]}
+              onChange={(v) => set({ becomes: v === "becomes" })}
+            />
+          )}
           {rule.when === "device" && option?.number && (
             <NumberField
               input={option.number}

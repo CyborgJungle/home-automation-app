@@ -100,7 +100,7 @@ export function describeTrigger(
       ));
   const value = option?.number ? ` ${t.value}${option.number.unit}` : "";
   const label = option?.label ?? "changes";
-  return `When ${nameOf(devices, t.device_id)} ${state ? deviceStateLabel(label) : label}${value}`;
+  return `When ${nameOf(devices, t.device_id)} ${state && t.mode !== "becomes" ? deviceStateLabel(label) : label}${value}`;
 }
 
 export function describeAction(a: AutomationAction, devices: Device[]) {
