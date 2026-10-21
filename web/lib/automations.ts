@@ -69,8 +69,11 @@ export function describeTrigger(
     const option = device && triggerOptions(device).find((o) => o.id === t.option || (o.event && o.pattern === t.pattern));
     return `When ${nameOf(devices, t.device_id)} ${option?.label ?? "is pressed"}`;
   }
-  if (t.type === "time_range")
+  if (t.type === "time_range") {
+    if (t.until === "24:00") return `From ${t.from}, ${daysLabel(t.days)}`;
+    if (t.from === "00:00") return `Until ${t.until}, ${daysLabel(t.days)}`;
     return `Between ${t.from} and ${t.until}, ${daysLabel(t.days)}`;
+  }
   if (t.type === "weather")
     return `When ${describeWeather(t, state).toLowerCase()}`;
   if (t.type === "dark") {

@@ -40,14 +40,30 @@ export function createDirigera(cfg, hub, log) {
   const lastPress = new Map();
   const settling = new Map(); // DIRIGERA id -> timer
 
-  function refreshSoon(id) {
+  // `look`: the colour just sent. A lamp that's still switching on or fading
+  // sometimes drops it, so whatever didn't land is sent once more.
+  function refreshSoon(id, look = {}) {
     clearTimeout(settling.get(id));
     settling.set(
       id,
       setTimeout(async () => {
         settling.delete(id);
         try {
-          const fresh = await api('GET', `/devices/${id}`);
+          let fresh = await api('GET', `/devices/${id}`);
+          const a = fresh?.attributes ?? {};
+          const missed = {};
+          if (look.colorTemperature != null && Math.abs((a.colorTemperature ?? 0) - look.colorTemperature) > 60) {
+            missed.colorTemperature = look.colorTemperature;
+          }
+          if (look.colorHue != null && Math.abs((a.colorHue ?? 0) - look.colorHue) % 360 > 4) {
+            Object.assign(missed, { colorHue: look.colorHue, colorSaturation: look.colorSaturation });
+          }
+          if (Object.keys(missed).length && a.isOn) {
+            log.info(`${a.customName ?? id} missed ${Object.keys(missed).join(', ')}; sending again`);
+            await api('PATCH', `/devices/${id}`, [{ attributes: missed }]);
+            await new Promise((r) => setTimeout(r, 800));
+            fresh = await api('GET', `/devices/${id}`);
+          }
           if (fresh?.id) {
             devices.set(id, fresh);
             publish(fresh);
@@ -272,7 +288,7 @@ export function createDirigera(cfg, hub, log) {
     if (Object.keys(look).length) await send(look);
     if (isOn === false) await send({ isOn });
     if (Object.keys(rest).length) await send(rest);
-    refreshSoon(d.id);
+    refreshSoon(d.id, look);
   }
 
   async function execute(deviceId, action, params) {

@@ -38,6 +38,8 @@ export function AutomationRuleFields({
 }) {
   const set = (patch: Partial<RuleDraft>) => onChange({ ...rule, ...patch });
   const category = categoryOf(rule.when);
+  const timeMode =
+    rule.when === "time" ? "time" : rule.until === "24:00" ? "from" : rule.at === "00:00" ? "until" : "time_range";
   const device = devices.find((d) => d.id === rule.device);
   const options = device ? triggerOptions(device) : [];
   const option = options.find((o) => o.id === rule.option);
@@ -88,36 +90,41 @@ export function AutomationRuleFields({
         <>
           <ChipChoice
             label="Time option"
-            value={rule.when}
+            value={timeMode}
             options={[
-              { value: "time", label: "At a time" },
-              { value: "time_range", label: "Between times" },
+              { value: "time", label: "At" },
+              { value: "from", label: "From" },
+              { value: "until", label: "Until" },
+              { value: "time_range", label: "Between" },
             ]}
-            onChange={(when) => set({ when: when as "time" | "time_range" })}
+            onChange={(mode) =>
+              set(
+                // "From 21:00" runs until midnight, "Until 07:00" from midnight.
+                mode === "time"
+                  ? { when: "time" }
+                  : mode === "from"
+                    ? { when: "time_range", at: rule.at === "00:00" ? "21:00" : rule.at, until: "24:00" }
+                    : mode === "until"
+                      ? { when: "time_range", at: "00:00", until: rule.until === "24:00" ? "07:00" : rule.until }
+                      : { when: "time_range", at: rule.at === "00:00" ? "21:00" : rule.at, until: rule.until === "24:00" ? "23:00" : rule.until },
+              )
+            }
           />
-          <div
-            className={rule.when === "time_range" ? "rule-times" : undefined}
-          >
-            <label className="field">
-              <span>{rule.when === "time_range" ? "From" : "At"}</span>
-              <input
-                type="time"
-                value={rule.at}
-                onChange={(e) => set({ at: e.target.value })}
-              />
-            </label>
-            {rule.when === "time_range" && (
+          <div className={timeMode === "time_range" ? "rule-times" : undefined}>
+            {timeMode !== "until" && (
               <label className="field">
-                <span>Until</span>
-                <input
-                  type="time"
-                  value={rule.until}
-                  onChange={(e) => set({ until: e.target.value })}
-                />
+                <span>{timeMode === "time_range" ? "From" : timeMode === "from" ? "From (until midnight)" : "At"}</span>
+                <input type="time" value={rule.at} onChange={(e) => set({ at: e.target.value })} />
+              </label>
+            )}
+            {(timeMode === "time_range" || timeMode === "until") && (
+              <label className="field">
+                <span>{timeMode === "until" ? "Until (from midnight)" : "Until"}</span>
+                <input type="time" value={rule.until} onChange={(e) => set({ until: e.target.value })} />
               </label>
             )}
           </div>
-          {rule.when === "time_range" && rule.at > rule.until && (
+          {timeMode === "time_range" && rule.at > rule.until && (
             <p className="muted small">
               Ends the next day. Choose the days it starts.
             </p>

@@ -172,7 +172,7 @@ export function buildRule(
     }
     if (!validTime(d.at)) return "Pick a time.";
     if (d.when === "time_range") {
-      if (!validTime(d.until) || d.at === d.until)
+      if (!(validTime(d.until) || d.until === "24:00") || d.at === d.until)
         return "Choose a different start and end time.";
       return {
         type: "time_range",
