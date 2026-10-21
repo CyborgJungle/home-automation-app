@@ -28,7 +28,7 @@ type State = Record<string, unknown>;
 export const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
 
 // Integrations that need the Raspberry Pi to be online.
-export const ON_PI: Device["integration"][] = ["presence", "ikeadisplay", "roborock", "app", "dirigera", "tradfri", "eufy", "brel", "bravia", "sonos", "apple"];
+export const ON_PI: Device["integration"][] = ["presence", "ikeadisplay", "roborock", "app", "dirigera", "tradfri", "brel", "bravia", "sonos", "apple"];
 
 export const CATEGORIES: { id: string; title: string; kinds: string[]; tone: Tone }[] = [
   { id: "lights", title: "Lights", kinds: ["group", "light"], tone: "yellow" },

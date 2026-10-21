@@ -28,18 +28,6 @@ export const config = {
       }
     : null,
 
-  eufy: env.EUFY_USERNAME
-    ? {
-        username: env.EUFY_USERNAME,
-        password: env.EUFY_PASSWORD,
-        country: env.EUFY_COUNTRY || undefined,
-        verifyCode: env.EUFY_VERIFY_CODE || undefined,
-        captchaId: env.EUFY_CAPTCHA_ID || undefined,
-        captchaCode: env.EUFY_CAPTCHA_CODE || undefined,
-        dataDir: path.join(dataDir, 'eufy'),
-      }
-    : null,
-
   brel: env.BREL_KEY
     ? {
         key: env.BREL_KEY,

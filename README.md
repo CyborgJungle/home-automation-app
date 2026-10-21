@@ -1,6 +1,6 @@
 # home-automation
 
-A first version for testing the connections: can we reach the IKEA lights, the Honeywell heating, the Brel blinds, the Sony TV and the Eufy doorbell, and do they respond?
+A first version for testing the connections: can we reach the IKEA lights, the Honeywell heating, the Brel blinds, the Sony TV and the Sonos speakers, and do they respond?
 
 ```
  Phone / laptop ──► Vercel (web/)  ◄──►  Supabase (database + realtime)
@@ -11,8 +11,7 @@ A first version for testing the connections: can we reach the IKEA lights, the H
                        ├─► IKEA TRÅDFRI gateway   (your home network)
                        ├─► Brel Home hub          (your home network, UDP)
                        ├─► Sony BRAVIA TV         (your home network, HTTP)
-                       ├─► Sonos speakers         (your home network, UPnP)
-                       └─► Eufy doorbell          (Eufy cloud + push)
+                       └─► Sonos speakers         (your home network, UPnP)
 ```
 
 - `web/` is a Next.js app on Vercel, made to be added to an iPhone home screen (Safari → Share → **Add to Home Screen**). It has four tabs: **Home** (every device, grouped by type; tap a tile to switch it, tap › for more controls), **Scenes** (tap a card to set several devices at once; the pencil edits it), **Automations** (simple when-this-then-that rules) and **Activity** (Pi and connection health, plus a timeline). After a new deploy the app reloads itself the next time you switch back to it.
@@ -22,7 +21,7 @@ A first version for testing the connections: can we reach the IKEA lights, the H
 - The automation editor has three categories: **Time**, **Device**, and **Weather**. Doorbell rings are under Device; sunrise/sunset are under Weather. Add **And / Or** blocks before **Then** to combine checks. And checks match together; Or starts an alternative group. Time also supports ranges, including overnight. The logic engine (`20261017001400_automation_logic.sql`) preserves older rules and queues shared actions once per matching change.
 - **Weather** (`supabase/functions/weather/`) uses Open-Meteo for the configured postcode. The cloud refreshes outdoor temperature, rain, cloud cover, wind, rain probability, and sunrise/sunset every 15 minutes, independently of the app. Automations offers weather changes, sun-event offsets, and optional weather conditions on every rule. Readings older than 45 minutes are ignored by weather-dependent rules. See the [weather setup and tests](supabase/functions/weather/README.md).
 - `supabase/functions/evohome/` talks to the Honeywell cloud. The database runs it every 5 minutes and right away when you press a heating button, so heating works even when the Pi is off.
-- `agent/` runs on the Raspberry Pi for the devices that need your home network or an always-on connection: the IKEA gateway, the Brel blinds, the Sony TV and the Eufy doorbell.
+- `agent/` runs on the Raspberry Pi for the devices that need your home network or an always-on connection: the IKEA gateway, the Brel blinds, the Sony TV and the Sonos speakers.
 - `supabase/migrations/` holds the database schema (already applied to the `home-automation` Supabase project).
 
 ## 1. Sign-in
@@ -50,7 +49,7 @@ Supabase → **Edge Functions → Secrets**: add `EVOHOME_USERNAME` and `EVOHOME
 
 If the login fails with a DNS or 404 error, also add `EVOHOME_HOST=https://tccna.honeywell.com`. After a wrong password the function waits 30 minutes before trying again, so Honeywell doesn't lock the account.
 
-## 3. Raspberry Pi (IKEA, Brel, Sony TV, Eufy)
+## 3. Raspberry Pi (IKEA, Brel, Sony TV, Sonos)
 
 You need an Ethernet cable (the Pi 2 has no Wi-Fi) and Raspberry Pi OS Lite (32-bit), flashed with Raspberry Pi Imager. In the Imager settings, set the hostname to `home-agent`, the user to `pi`, and enable SSH. Leave Raspberry Pi Connect off.
 
@@ -77,12 +76,10 @@ rsync -a --delete --exclude node_modules --exclude .env --exclude data agent/ pi
 ```sh
 # On the Pi
 cd ~/home-automation/agent
-npm ci --omit=dev --omit=optional   # skips the large Eufy library until you need it
+npm ci --omit=dev
 cp .env.example .env
 nano .env
 ```
-
-When you add Eufy later, run `npm ci --omit=dev` once to install its library.
 
 Fill in `.env` one integration at a time and test with **`npm run discover`** after each one. It logs in, lists what it finds and exits, without touching Supabase.
 
@@ -93,7 +90,6 @@ Fill in `.env` one integration at a time and test with **`npm run discover`** af
 - **Roborock vacuum (S5 and other miIO models):** the robot talks to the Pi over the local network, no cloud. Put its IP address in `ROBOROCK_HOST` and its 32-character device token in `ROBOROCK_TOKEN`. The token comes from your Xiaomi/Roborock account: for an S5 that is paired in the Mi Home app, the [Xiaomi Cloud Tokens Extractor](https://github.com/PiotrMachowski/Xiaomi-cloud-tokens-extractor) lists it; the Roborock app itself doesn't show it. Give the robot a fixed IP in your router. Restart the agent; "Roborock" then shows under Cleaning with start, pause, dock, find and suction.
 - **Sonos:** nothing to set up beyond `SONOS_HOST=<a speaker's IP>` (or `SONOS=on`); speakers are found on the network. Sonos favourites (the heart in the Sonos app) can be played from the app, scenes and automations.
 - **Sony TV:** on the TV, go to **Settings → Network & Internet → Home network → IP control**. Set **Authentication** to *Normal and Pre-Shared Key*, choose a **Pre-Shared Key**, and turn on **Remote start** (so the TV can be switched on from standby). Put the TV's IP address in `BRAVIA_HOST` and the key in `BRAVIA_PSK`.
-- **Eufy:** ideally a second Eufy account that the doorbell is shared with (Eufy app → device settings → share). That way the agent won't sign your phone out. On the first login Eufy may email a code or ask for a captcha. The agent log tells you which `.env` line to fill in, then run it again.
 
 When `discover` looks right, add the Supabase secret key to `.env` (Project Settings → API Keys → **secret**) and run the agent as a service:
 
@@ -120,12 +116,11 @@ home LAN.
 Open the Vercel URL and sign in.
 - Each section shows whether its connection works (● Connected) or what's wrong. The **Raspberry Pi agent** box should say *Online*.
 - Press a light's or heating zone's button. The **Command log** shows `done` and how long it took, or `failed` with the reason.
-- Ring the doorbell. A row should appear under **Events** within a few seconds.
 
 ## Known limits
 
 - The TRÅDFRI gateway doesn't pass on motion-sensor or remote-button presses. Those devices appear (with battery level) but can't trigger anything.
-- The Honeywell and Eufy APIs are unofficial (the same ones Home Assistant uses). Heating status refreshes every 5 minutes because Honeywell rate-limits the API.
+- The Honeywell API is unofficial (the same one Home Assistant uses). Heating status refreshes every 5 minutes because Honeywell rate-limits the API.
 - Commands older than 2 minutes are dropped, so taps made while something was offline don't all fire when it comes back.
 
 ## Development

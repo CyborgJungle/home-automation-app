@@ -38,7 +38,6 @@ export const INTEGRATION_NAMES: Record<Device["integration"], string> = {
   dirigera: "IKEA DIRIGERA",
   tradfri: "IKEA TRÅDFRI",
   evohome: "Honeywell evohome",
-  eufy: "Eufy",
   brel: "Brel Home",
   bravia: "Sony BRAVIA",
   sonos: "Sonos",

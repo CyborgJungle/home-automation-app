@@ -26,7 +26,7 @@ const hub = {
 
 const integrations = await createIntegrations(config, hub, log);
 if (!integrations.length) {
-  log.error('Nothing configured. Fill in TRÅDFRI and/or Eufy settings in .env first.');
+  log.error('Nothing configured. Fill in at least one integration in .env first.');
   process.exit(1);
 }
 

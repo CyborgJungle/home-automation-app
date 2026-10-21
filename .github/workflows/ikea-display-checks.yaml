@@ -16,7 +16,7 @@ jobs:
         with:
           node-version: '22'
       # These mocked API tests use only Node's built-in modules. No .env,
-      # live Supabase connection, device or optional Eufy library is needed.
+      # live Supabase connection or device is needed.
       - name: Test display integration
         working-directory: agent
         run: npm test

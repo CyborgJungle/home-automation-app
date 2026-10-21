@@ -19,7 +19,6 @@ const WHERE: Record<Device["integration"], string> = {
   bravia: "Pi",
   sonos: "Pi",
   apple: "Pi",
-  eufy: "Pi",
   evohome: "Cloud",
 };
 

@@ -47,7 +47,9 @@ export function AutomationRuleFields({
     (o) => o.id === rule.weatherOption,
   );
   const groups = deviceGroups(devices.filter(canTrigger));
-  groups.push({
+  const offerDoorbell =
+    devices.some((d) => d.kind === "doorbell") || (rule.when === "event" && !rule.device);
+  if (offerDoorbell) groups.push({
     title: "Doorbell",
     items: [
       {
