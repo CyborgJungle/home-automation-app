@@ -266,9 +266,13 @@ export function HomeProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    const onVisible = () => {
+    // Coming back to the app is the moment to update: nothing is mid-tap yet.
+    const onVisible = async () => {
       if (document.visibilityState === "hidden" && stale) window.location.reload();
-      if (document.visibilityState === "visible") check();
+      if (document.visibilityState === "visible") {
+        await check();
+        if (stale) window.location.reload();
+      }
     };
 
     check();
