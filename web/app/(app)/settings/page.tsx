@@ -95,13 +95,9 @@ function Appearance() {
 export default function SettingsPage() {
   const { agent, agentOnline, statuses, devices, userEmail, signOut } = useHome();
 
-  // "Seen on the network" is only a ping, so name what it watches and how each
-  // one is doing instead of a bare "Connected".
-  const watched = devices
-    .filter((d) => d.integration === "presence")
-    .sort((a, b) => a.name.localeCompare(b.name))
-    .map((d) => `${d.name} · ${describe(d, d.state)}`)
-    .join(", ");
+  // Devices the Pi only pings (like the Steam machine) each get their own row,
+  // named after the device rather than "Seen on the network".
+  const watched = devices.filter((d) => d.integration === "presence").sort((a, b) => a.name.localeCompare(b.name));
 
   return (
     <main className="page">
@@ -128,24 +124,34 @@ export default function SettingsPage() {
           {statuses
             .slice()
             .sort((a, b) => a.name.localeCompare(b.name))
-            .map((s) => {
+            .flatMap((s) => {
               const ok = s.ok && (WHERE[s.name] === "Cloud" || agentOnline);
-              return (
-                <div key={s.name} className="list-row">
+              const rows =
+                s.name === "presence" && ok && watched.length
+                  ? watched.map((d) => ({
+                      key: d.id,
+                      title: d.name,
+                      sub: `${describe(d, d.state)} · seen on the network`,
+                      at: d.updated_at,
+                    }))
+                  : [
+                      {
+                        key: s.name,
+                        title: INTEGRATION_NAMES[s.name] ?? s.name,
+                        sub: ok ? `Connected · runs on ${WHERE[s.name] === "Cloud" ? "Supabase" : "the Pi"}` : s.error ?? "Not connected",
+                        at: s.updated_at,
+                      },
+                    ];
+              return rows.map((r) => (
+                <div key={r.key} className="list-row">
                   <span className={ok ? "dot ok" : "dot bad"} />
                   <span className="grow">
-                    <strong>{INTEGRATION_NAMES[s.name] ?? s.name}</strong>
-                    <span className="muted small sub">
-                      {ok
-                        ? s.name === "presence" && watched
-                          ? `Watching ${watched}`
-                          : `Connected · runs on ${WHERE[s.name] === "Cloud" ? "Supabase" : "the Pi"}`
-                        : s.error ?? "Not connected"}
-                    </span>
+                    <strong>{r.title}</strong>
+                    <span className="muted small sub">{r.sub}</span>
                   </span>
-                  <span className="muted small">{timeAgo(s.updated_at)}</span>
+                  <span className="muted small">{timeAgo(r.at)}</span>
                 </div>
-              );
+              ));
             })}
         </div>
       </section>
