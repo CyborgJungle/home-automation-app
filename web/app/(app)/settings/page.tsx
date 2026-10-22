@@ -3,6 +3,7 @@
 import { INTEGRATION_NAMES } from "@/components/devices";
 import { Blob, Icon } from "@/components/icons";
 import { PageHeader, Switch, timeAgo } from "@/components/ui";
+import { describe } from "@/lib/devices";
 import { useHome } from "@/lib/home";
 import type { Device } from "@/lib/supabase";
 import { useTheme } from "@/lib/theme";
@@ -92,7 +93,15 @@ function Appearance() {
 // The timeline is gone from the app; every command and event is still kept in
 // Supabase (the commands and events tables).
 export default function SettingsPage() {
-  const { agent, agentOnline, statuses, userEmail, signOut } = useHome();
+  const { agent, agentOnline, statuses, devices, userEmail, signOut } = useHome();
+
+  // "Seen on the network" is only a ping, so name what it watches and how each
+  // one is doing instead of a bare "Connected".
+  const watched = devices
+    .filter((d) => d.integration === "presence")
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((d) => `${d.name} · ${describe(d, d.state)}`)
+    .join(", ");
 
   return (
     <main className="page">
@@ -126,7 +135,13 @@ export default function SettingsPage() {
                   <span className={ok ? "dot ok" : "dot bad"} />
                   <span className="grow">
                     <strong>{INTEGRATION_NAMES[s.name] ?? s.name}</strong>
-                    <span className="muted small sub">{ok ? `Connected · runs on ${WHERE[s.name] === "Cloud" ? "Supabase" : "the Pi"}` : s.error ?? "Not connected"}</span>
+                    <span className="muted small sub">
+                      {ok
+                        ? s.name === "presence" && watched
+                          ? `Watching ${watched}`
+                          : `Connected · runs on ${WHERE[s.name] === "Cloud" ? "Supabase" : "the Pi"}`
+                        : s.error ?? "Not connected"}
+                    </span>
                   </span>
                   <span className="muted small">{timeAgo(s.updated_at)}</span>
                 </div>
