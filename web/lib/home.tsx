@@ -101,7 +101,7 @@ export function HomeProvider({ children }: { children: React.ReactNode }) {
       rawDevices.map((d) => {
         if (!floor) return d;
         if (d.id === floor.sensor_zone) {
-          return { ...d, state: { ...d.state, floor: { enabled: floor.enabled, target: Number(floor.target), heating: floor.heating } } };
+          return { ...d, state: { ...d.state, floor: { enabled: floor.enabled, target: Number(floor.target), heating: floor.heating, via: floor.boiler_via } } };
         }
         if (d.id === floor.helper_zone) return { ...d, state: { ...d.state, floor_helper: true } };
         return d;

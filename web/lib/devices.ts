@@ -149,7 +149,7 @@ export function displayState(d: Device, commands: Command[]): State {
 }
 
 // The floor-heating thermostat riding on the living-room zone (see lib/home.tsx).
-export type FloorState = { enabled: boolean; target: number; heating: boolean };
+export type FloorState = { enabled: boolean; target: number; heating: boolean; via?: string | null };
 export const floorOf = (s: State) => (s.floor && typeof s.floor === "object" ? (s.floor as FloorState) : null);
 
 // "Active" tiles are filled with their colour.
@@ -162,12 +162,9 @@ export function isActive(d: Device, s: State) {
       return Boolean(s.on);
     case "blind":
       return num(s.position) !== null && num(s.position)! < 100;
-    case "zone": {
-      const floor = floorOf(s);
-      if (floor) return floor.enabled && floor.heating;
-      if (s.floor_helper) return false;
-      return num(s.temperature) !== null && num(s.setpoint) !== null && num(s.temperature)! < num(s.setpoint)!;
-    }
+    // Coloured when switched on, like a lamp, so the card and its power icon agree.
+    case "zone":
+      return !s.floor_helper && roomOn(s);
     case "heating":
       return s.mode !== "HeatingOff";
     case "speaker":
@@ -208,7 +205,8 @@ export function describe(d: Device, s: State): string {
       const floor = floorOf(s);
       if (floor) return floor.enabled ? `On · ${floor.target}°${floor.heating ? " · heating" : ""}` : "Off";
       if (s.floor_helper) return "Boiler switch for the floor";
-      return roomOn(s) ? `On · ${s.setpoint}°` : "Off";
+      if (!roomOn(s)) return "Off";
+      return `On · ${s.setpoint}°${(num(s.temperature) ?? Infinity) < (num(s.setpoint) ?? 0) ? " · heating" : ""}`;
     }
     case "heating":
       return `Mode: ${modeLabel(s.mode)}`;

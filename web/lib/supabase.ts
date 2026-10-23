@@ -119,6 +119,8 @@ export type FloorHeating = {
   sensor_zone: string;
   helper_zone: string;
   heating: boolean;
+  // Another room whose heat the floor is using, so the helper can stay off.
+  boiler_via: string | null;
   last_switch_at: string | null;
 };
 

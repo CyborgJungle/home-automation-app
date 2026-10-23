@@ -239,12 +239,15 @@ function DeviceControls({ device: d }: { device: Device }) {
 
       {d.kind === "zone" && floorOf(s) && <RoomTemperature state={s} reachable={reachable} go={go} />}
 
+      {d.kind === "zone" && floorOf(s)?.enabled && floorOf(s)?.heating && floorOf(s)?.via && <BoilerVia id={floorOf(s)!.via!} />}
+
       {d.kind === "zone" && Boolean(s.floor_helper) && (
         <div className="note-card">
           <strong>Boiler switch for the floor heating</strong>
           <p className="muted small">
-            The living-room thermostat sets this zone to 30° to make the boiler fire and to 5° to stop it. Its own
-            temperature is ignored. Its radiator should be closed underneath, so this room doesn&apos;t heat.
+            The living-room thermostat turns this zone all the way up to make the boiler fire, and down to stop it. When
+            another room is already heating, the floor uses that heat and this zone stays down. Its own temperature is
+            ignored. Its radiator should be closed underneath, so this room doesn&apos;t heat.
           </p>
         </div>
       )}
@@ -739,6 +742,17 @@ function AppleTvControls({
         />
       )}
     </>
+  );
+}
+
+// The floor heating is running on the heat another room asked for.
+function BoilerVia({ id }: { id: string }) {
+  const { devices } = useHome();
+  const name = devices.find((x) => x.id === id)?.name ?? "Another room";
+  return (
+    <p className="muted small" role="status">
+      {name} is heating, so the floor uses that heat and its helper zone stays off.
+    </p>
   );
 }
 
