@@ -5,6 +5,8 @@
 // Authentication "Normal and Pre-Shared Key", set a Pre-Shared Key, and turn on
 // Remote start so the TV can be switched on from standby.
 
+import { inputToSwitch, portOf } from './tv-inputs.js';
+
 // Often enough to notice the TV coming on (say via the Apple TV) within seconds.
 const POLL_MS = 4000;
 // While it starts up the TV may put its own volume back; check and set again.
@@ -27,6 +29,11 @@ export function createBravia(cfg, hub, log) {
   // HDMI-CEC ("Apple TV", "Steam Machine"), for the automation builder.
   const inputNames = new Set();
   let inputsCheckedAt = 0;
+  // Following the source devices (BRAVIA_HDMI_<port>): when each came on.
+  const sources = (cfg.sources ?? []).map((s) => ({ ...s, on: null, onSince: 0 }));
+  let tvOn = null;
+  let tvOnSince = 0;
+  let lastSwitchAt = 0;
 
   async function rpc(service, method, params = [], version = '1.0') {
     const res = await fetch(`http://${cfg.host}/sony/${service}`, {
@@ -94,9 +101,13 @@ export function createBravia(cfg, hub, log) {
         const info = await nowPlaying();
         state.playing = info?.title || info?.source || null;
         trackInput(info?.title ?? null);
+        await followSources(info?.uri);
       } else {
         trackInput(null);
       }
+      // Seen on at the agent's start doesn't count as "just came on".
+      if (state.on && tvOn === false) tvOnSince = Date.now();
+      tvOn = state.on;
       state.input = input;
       state.input_was = Date.now() < inputWasUntil ? inputWas : null;
       state.inputs = [...inputNames].sort();
@@ -112,7 +123,30 @@ export function createBravia(cfg, hub, log) {
       // it on again is seen as "turns on".
       const row = hub.devices.get(ID);
       if (row?.online || row?.state?.on) hub.upsertDevice({ ...row, online: false, state: { ...row.state, on: false } });
+      tvOn = false;
       hub.status('bravia', false, message);
+    }
+  }
+
+  // Puts the TV on the input of the device that's on (see tv-inputs.js).
+  async function followSources(uri) {
+    if (!sources.length) return;
+    const now = Date.now();
+    for (const s of sources) {
+      const row = hub.devices.get(s.device);
+      const on = Boolean(row && row.online !== false && (row.state?.on === true || row.state?.awake === true));
+      if (on && s.on === false) s.onSince = now;
+      s.on = on;
+    }
+    const port = inputToSwitch({ sources, current: portOf(uri), tvOnSince, lastSwitchAt, now });
+    if (port === null) return;
+    lastSwitchAt = now;
+    const from = input ?? 'an app';
+    try {
+      await rpc('avContent', 'setPlayContent', [{ uri: `extInput:hdmi?port=${port}` }]);
+      log.info(`TV was on ${from}; switched to HDMI ${port}`);
+    } catch (e) {
+      log.warn(`switching the TV to HDMI ${port} failed:`, e.message);
     }
   }
 

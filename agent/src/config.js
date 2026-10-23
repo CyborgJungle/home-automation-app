@@ -81,6 +81,11 @@ export const config = {
         name: env.BRAVIA_NAME || 'Sony TV',
         host: env.BRAVIA_HOST,
         psk: env.BRAVIA_PSK,
+        // BRAVIA_HDMI_<port>=<device id>: the TV follows these devices'
+        // inputs (see integrations/tv-inputs.js).
+        sources: Object.entries(env)
+          .map(([key, device]) => ({ port: Number(key.match(/^BRAVIA_HDMI_(\d+)$/)?.[1]), device: device?.trim() }))
+          .filter((s) => s.port && s.device),
       }
     : null,
 };
