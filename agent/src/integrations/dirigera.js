@@ -9,6 +9,7 @@
 import WebSocket from 'ws';
 import { DIRIGERA_CA } from './dirigera-ca.js';
 import { dirigeraRequest } from './dirigera-api.js';
+import { remoteSyncPlan } from './remote-sync.js';
 
 const RESYNC_MS = 10 * 60_000; // full refresh in case an event was missed
 const RECONNECT_MIN_MS = 2000;
@@ -17,6 +18,10 @@ const BUTTON_DEDUPE_MS = 400;
 // Lamps fade, and the hub reports in-between values on the way; read the
 // final state once the fade is over.
 const SETTLE_MS = 1800;
+// After a remote is used, its lamps go back to one brightness once they've
+// stopped changing (a held button keeps dimming), but no later than this.
+const REMOTE_QUIET_MS = 2500;
+const REMOTE_MAX_MS = 20_000;
 
 const KIND_BY_TYPE = {
   light: 'light',
@@ -39,6 +44,7 @@ export function createDirigera(cfg, hub, log) {
   let pingTimer = null;
   const lastPress = new Map();
   const settling = new Map(); // DIRIGERA id -> timer
+  const remoteSync = new Map(); // remote id -> { since, timer }
 
   // `look`: the colour just sent. A lamp that's still switching on or fading
   // sometimes drops it, so whatever didn't land is sent once more.
@@ -171,6 +177,33 @@ export function createDirigera(cfg, hub, log) {
     });
   }
 
+  // Waits for the remote's lamps to stop changing, then evens them out
+  // (see remote-sync.js). A press starts the wait; each lamp change after it
+  // restarts the quiet period, up to REMOTE_MAX_MS after the press.
+  function syncRemoteSoon(remoteId, pressed = false) {
+    const pending = remoteSync.get(remoteId);
+    if (!pending && !pressed) return;
+    clearTimeout(pending?.timer);
+    const since = pressed ? Date.now() : pending.since;
+    const wait = Math.max(0, Math.min(REMOTE_QUIET_MS, since + REMOTE_MAX_MS - Date.now()));
+    const timer = setTimeout(() => {
+      remoteSync.delete(remoteId);
+      syncRemoteLamps(remoteId).catch((e) => log.warn('evening out lamps failed:', e.message));
+    }, wait);
+    remoteSync.set(remoteId, { since, timer });
+  }
+
+  async function syncRemoteLamps(remoteId) {
+    const lamps = [...devices.values()].filter(
+      (d) => d.deviceType === 'light' && d.isReachable !== false && d.remoteLinks?.includes(remoteId) && can(d, 'lightLevel'),
+    );
+    const plan = remoteSyncPlan(lamps.map((d) => ({ id: d.id, on: Boolean(d.attributes?.isOn), level: d.attributes?.lightLevel })));
+    if (!plan) return;
+    const remote = devices.get(remoteId);
+    log.info(`${remote ? nameOf(remote) : 'remote'} used: ${plan.ids.length} lamp(s) back to ${plan.level}%`);
+    await Promise.allSettled(plan.ids.map((id) => patch(devices.get(id), { isOn: true, lightLevel: plan.level })));
+  }
+
   function publish(d) {
     const row = deviceRow(d);
     if (row) hub.upsertDevice(row);
@@ -198,6 +231,7 @@ export function createDirigera(cfg, hub, log) {
       if (data.isReachable != null) d.isReachable = data.isReachable;
       if (data.room) d.room = data.room;
       publish(d);
+      for (const remoteId of d.remoteLinks ?? []) syncRemoteSoon(remoteId);
       if (data.remoteLinks) {
         d.remoteLinks = data.remoteLinks;
         for (const r of devices.values()) if (KIND_BY_TYPE[r.deviceType] === 'remote') publish(r);
@@ -211,6 +245,7 @@ export function createDirigera(cfg, hub, log) {
       const d = devices.get(data.id);
       hub.event('button.press', `dirigera:${data.id}`, { pattern, name: d ? nameOf(d) : null });
       if (d) publish(d);
+      syncRemoteSoon(data.id, true);
     } else if (/^(device(Added|Removed|ConfigurationChanged)|room(Created|Updated|Deleted))$/.test(event.type)) {
       resync().catch((e) => log.warn('resync failed:', e.message));
     }
@@ -320,6 +355,7 @@ export function createDirigera(cfg, hub, log) {
     clearInterval(resyncTimer);
     clearInterval(pingTimer);
     for (const t of settling.values()) clearTimeout(t);
+    for (const { timer } of remoteSync.values()) clearTimeout(timer);
     ws?.close();
   }
 
