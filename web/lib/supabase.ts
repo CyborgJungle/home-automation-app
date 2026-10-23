@@ -63,7 +63,9 @@ export type AutomationRule =
   | { type: "device"; device_id: string; key: string; op: "eq" | "ne" | "lt" | "gt"; value: unknown; option?: string; mode?: "becomes" }
   | { type: "event"; event: string; device_id?: string; pattern?: string; option?: string }
   // Whether a scene is on: every device in it looks the way the scene sets it.
-  | { type: "scene"; scene_id: string; value: boolean };
+  // With `latest`: whether it's the scene played most recently instead, which
+  // stays true until another scene is played.
+  | { type: "scene"; scene_id: string; value: boolean; latest?: boolean };
 
 export type AutomationTrigger = AutomationRule | { type: "logic"; groups: AutomationRule[][] };
 

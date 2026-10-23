@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test weather.test.js heating.test.js && node --experimental-strip-types --test ../functions/weather/weather.test.ts"
+    "test": "node --test weather.test.js heating.test.js scenes.test.js && node --experimental-strip-types --test ../functions/weather/weather.test.ts"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.3.16"

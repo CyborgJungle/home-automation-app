@@ -407,7 +407,17 @@ export type ActionOption = {
   offAfter?: boolean;
   // Shown above the number when it's not the main choice, e.g. "Brightness".
   numberLabel?: string;
+  // Typed in (kept in the row's `choice`), e.g. a link to open.
+  text?: { label: string; placeholder: string };
 };
+
+// A YouTube link opens in the Apple TV's YouTube app with its own scheme;
+// other links go as they are.
+export function appleLink(url: string) {
+  const u = url.trim();
+  const id = u.match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|live\/|shorts\/)|youtu\.be\/)([\w-]{6,})/)?.[1];
+  return id ? `youtube://www.youtube.com/watch?v=${id}` : u;
+}
 
 const onFor: ActionOption = {
   id: "on_for",
@@ -617,6 +627,13 @@ export function actionOptions(d: Device): ActionOption[] {
                 },
               ]
             : []),
+          {
+            id: "link",
+            label: "Open a link",
+            action: "app",
+            params: (_: number | null, choice: string | null) => ({ id: appleLink(choice ?? "") }),
+            text: { label: "Link", placeholder: "https://www.youtube.com/watch?v=…" },
+          },
         ];
       }
       return [

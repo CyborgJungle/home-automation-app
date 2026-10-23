@@ -38,8 +38,9 @@ export function buildActions(rows: ActionRow[], devices: Device[], scenes: Scene
     const option = device && actionOptions(device).find((o) => o.id === row.option);
     if (!device || !option) return "Every action needs a device and what to do.";
     const value = option.number ? row.value ?? option.number.default : null;
-    const choice = option.choices ? row.choice ?? null : null;
+    const choice = option.choices || option.text ? row.choice?.trim() || null : null;
     if (option.choices && !choice) return `Pick which one for “${option.label}”.`;
+    if (option.text && !choice?.includes("://")) return `Fill in a full link for “${option.label}”, starting with https://.`;
     actions.push({
       device_id: device.id,
       action: option.action,
@@ -119,6 +120,20 @@ export function ActionRows({
                   ]}
                   onChange={(v) => update({ choice: v })}
                 />
+              )}
+              {option?.text && (
+                <label className="field">
+                  <span>{option.text.label}</span>
+                  <input
+                    type="url"
+                    inputMode="url"
+                    autoCapitalize="off"
+                    autoCorrect="off"
+                    value={row.choice ?? ""}
+                    placeholder={option.text.placeholder}
+                    onChange={(e) => update({ choice: e.target.value })}
+                  />
+                </label>
               )}
               {option?.number && (
                 <NumberField

@@ -217,6 +217,8 @@ export function AutomationRuleFields({
               options={[
                 { value: "scene_on", label: "Is on" },
                 { value: "scene_off", label: "Is off" },
+                { value: "scene_last", label: "Played last" },
+                { value: "scene_last_not", label: "Not played last" },
               ]}
               onChange={(option) => set({ option })}
             />

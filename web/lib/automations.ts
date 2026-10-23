@@ -65,8 +65,11 @@ export function describeTrigger(
         .join(" or ")
     );
   if (t.type === "time") return `At ${t.at}, ${daysLabel(t.days)}`;
-  if (t.type === "scene")
-    return `When ${scenes.find((s) => s.id === t.scene_id)?.name ?? "a removed scene"} is ${t.value ? "on" : "off"}`;
+  if (t.type === "scene") {
+    const name = scenes.find((s) => s.id === t.scene_id)?.name ?? "a removed scene";
+    if (t.latest) return t.value ? `When ${name} was the last scene played` : `When ${name} wasn't the last scene played`;
+    return `When ${name} is ${t.value ? "on" : "off"}`;
+  }
   if (t.type === "event" && t.event === "button.press") {
     const device = devices.find((d) => d.id === t.device_id);
     const option = device && triggerOptions(device).find((o) => o.id === t.option || (o.event && o.pattern === t.pattern));

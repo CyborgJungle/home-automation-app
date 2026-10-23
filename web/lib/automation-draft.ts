@@ -40,6 +40,10 @@ export type AutomationDraft = {
   actions: ActionRow[];
 };
 
+// "Is on" / "Is off" look at the devices; "Played last" / "Not played last"
+// at which scene was played most recently.
+export const SCENE_OPTIONS = ["scene_on", "scene_off", "scene_last", "scene_last_not"];
+
 export const categoryOf = (type: RuleDraft["when"]): Category =>
   type === "time" || type === "time_range"
     ? "time"
@@ -98,7 +102,11 @@ function ruleDraft(t: AutomationRule, devices: Device[]): RuleDraft {
         weatherValue: typeof t.value === "number" ? t.value : null,
       };
     case "scene":
-      return { ...d, device: t.scene_id, option: t.value ? "scene_on" : "scene_off" };
+      return {
+        ...d,
+        device: t.scene_id,
+        option: t.latest ? (t.value ? "scene_last" : "scene_last_not") : t.value ? "scene_on" : "scene_off",
+      };
     case "event": {
       if (t.event !== "button.press")
         return { ...d, device: t.device_id ?? "", option: "ring" };
@@ -220,8 +228,9 @@ export function buildRule(
       ...(d.device ? { device_id: d.device } : {}),
     };
   if (d.when === "scene") {
-    if (!d.device || (d.option !== "scene_on" && d.option !== "scene_off")) return "Choose a scene and what to check.";
-    return { type: "scene", scene_id: d.device, value: d.option === "scene_on" };
+    if (!d.device || !SCENE_OPTIONS.includes(d.option)) return "Choose a scene and what to check.";
+    const latest = d.option.startsWith("scene_last");
+    return { type: "scene", scene_id: d.device, value: d.option === "scene_on" || d.option === "scene_last", ...(latest ? { latest } : {}) };
   }
   const device = devices.find((device) => device.id === d.device);
   const option =
