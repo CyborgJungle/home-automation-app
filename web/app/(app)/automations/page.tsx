@@ -97,7 +97,7 @@ function Editor({
     const built = build(draft, devices, scenes);
     if (typeof built === "string") return setError(built);
     setSaving(true);
-    const name = draft.name.trim() || describeTrigger(built.trigger, devices);
+    const name = draft.name.trim() || describeTrigger(built.trigger, devices, false, scenes);
     const err = await saveAutomation({
       id: draft.id,
       name,
@@ -208,6 +208,7 @@ function Editor({
                 <AutomationRuleFields
                   rule={block.rule}
                   devices={devices}
+                  scenes={scenes}
                   onChange={(rule) =>
                     set({
                       blocks: draft.blocks.map((b, i) =>

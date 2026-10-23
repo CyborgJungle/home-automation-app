@@ -2,7 +2,7 @@
 
 import { NumberField } from "@/components/actions";
 import { Icon, type IconKey } from "@/components/icons";
-import { ChipChoice, deviceGroups, Picker } from "@/components/picker";
+import { ChipChoice, deviceGroups, Picker, sceneItem } from "@/components/picker";
 import { DAYS, WEEK, deviceStateLabel } from "@/lib/automations";
 import {
   categoryOf,
@@ -11,7 +11,7 @@ import {
   type RuleDraft,
 } from "@/lib/automation-draft";
 import { canTrigger, triggerOptions } from "@/lib/devices";
-import type { Device } from "@/lib/supabase";
+import type { Device, Scene } from "@/lib/supabase";
 import { WEATHER_OPTIONS } from "@/lib/weather";
 
 export const CATEGORIES: {
@@ -24,23 +24,28 @@ export const CATEGORIES: {
   { id: "device", label: "Device", icon: "bulb", tone: "yellow" },
   { id: "weather", label: "Weather", icon: "cloud", tone: "sky" },
 ];
+const SCENE = "scene:";
+
 export const categoryInfo = (rule: RuleDraft) =>
   CATEGORIES.find((c) => c.id === categoryOf(rule.when))!;
 
 export function AutomationRuleFields({
   rule,
   devices,
+  scenes,
   onChange,
 }: {
   rule: RuleDraft;
   devices: Device[];
+  scenes: Scene[];
   onChange: (rule: RuleDraft) => void;
 }) {
   const set = (patch: Partial<RuleDraft>) => onChange({ ...rule, ...patch });
   const category = categoryOf(rule.when);
   const timeMode =
     rule.when === "time" ? "time" : rule.until === "24:00" ? "from" : rule.at === "00:00" ? "until" : "time_range";
-  const device = devices.find((d) => d.id === rule.device);
+  const scene = rule.when === "scene" ? scenes.find((s) => s.id === rule.device) : undefined;
+  const device = rule.when === "scene" ? undefined : devices.find((d) => d.id === rule.device);
   const options = device ? triggerOptions(device) : [];
   const option = options.find((o) => o.id === rule.option);
   const weatherOption = WEATHER_OPTIONS.find(
@@ -63,6 +68,9 @@ export function AutomationRuleFields({
       },
     ],
   });
+  // A scene counts as on when its devices look the way it sets them.
+  const sceneItems = scenes.filter((s) => s.kind === "custom").map((s) => sceneItem(s, `${SCENE}${s.id}`));
+  if (sceneItems.length) groups.push({ title: "Scenes", items: sceneItems });
 
   return (
     <>
@@ -142,10 +150,16 @@ export function AutomationRuleFields({
             value={
               rule.when === "event" && !rule.device
                 ? "__any_doorbell__"
-                : rule.device
+                : rule.when === "scene"
+                  ? `${SCENE}${rule.device}`
+                  : rule.device
             }
             groups={groups}
             onChange={(value) => {
+              if (value.startsWith(SCENE)) {
+                set({ device: value.slice(SCENE.length), when: "scene", option: "scene_on", value: null });
+                return;
+              }
               const picked = devices.find((d) => d.id === value);
               const ring =
                 value === "__any_doorbell__" || picked?.kind === "doorbell";
@@ -194,6 +208,17 @@ export function AutomationRuleFields({
                   value: null,
                 })
               }
+            />
+          )}
+          {scene && (
+            <ChipChoice
+              label="Scene option"
+              value={rule.option}
+              options={[
+                { value: "scene_on", label: "Is on" },
+                { value: "scene_off", label: "Is off" },
+              ]}
+              onChange={(option) => set({ option })}
             />
           )}
           {rule.when === "device" && option && (

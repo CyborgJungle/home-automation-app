@@ -46,6 +46,7 @@ export function describeTrigger(
   t: AutomationTrigger,
   devices: Device[],
   state = false,
+  scenes: Scene[] = [],
 ): string {
   if (t.type === "logic")
     return (
@@ -54,7 +55,7 @@ export function describeTrigger(
         .map((group) =>
           group
             .map((rule) =>
-              describeTrigger(rule, devices, true)
+              describeTrigger(rule, devices, true, scenes)
                 .replace(/^When /, "")
                 .replace(/^(At|Between) /, (word) => word.toLowerCase()),
             )
@@ -64,6 +65,8 @@ export function describeTrigger(
         .join(" or ")
     );
   if (t.type === "time") return `At ${t.at}, ${daysLabel(t.days)}`;
+  if (t.type === "scene")
+    return `When ${scenes.find((s) => s.id === t.scene_id)?.name ?? "a removed scene"} is ${t.value ? "on" : "off"}`;
   if (t.type === "event" && t.event === "button.press") {
     const device = devices.find((d) => d.id === t.device_id);
     const option = device && triggerOptions(device).find((o) => o.id === t.option || (o.event && o.pattern === t.pattern));
@@ -131,7 +134,7 @@ export function summary(
     .map((c) => describeWeather(c, true).toLowerCase())
     .join(" and ");
   return {
-    when: `${describeTrigger(a.trigger, devices)}${conditions ? ` and ${conditions}` : ""}`,
+    when: `${describeTrigger(a.trigger, devices, false, scenes)}${conditions ? ` and ${conditions}` : ""}`,
     then: then || "nothing yet",
   };
 }

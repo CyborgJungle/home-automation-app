@@ -8,10 +8,20 @@
 import { execFile } from 'node:child_process';
 
 // A ping is a single tiny packet, so checking often costs the Pi next to
-// nothing; two misses in a row (one dropped packet isn't sleep) means a
-// device is seen asleep 2–5 seconds after it really is.
+// nothing. One answer means awake straight away. Asleep takes 5 minutes
+// without a single answer: an idle Steam machine (or its Wi-Fi saving power)
+// can skip pings for a while, and "asleep" turns the TV off.
 const POLL_MS = 2000;
-const MISSES_FOR_ASLEEP = 2;
+const PING_WAIT_S = 2;
+export const ASLEEP_AFTER_MS = 5 * 60 * 1000;
+
+// Awake when it just answered; asleep once it has been silent long enough;
+// otherwise keep what we had.
+export function nextAwake({ answered, lastAnswerAt, now, was }) {
+  if (answered) return true;
+  if (now - lastAnswerAt >= ASLEEP_AFTER_MS) return false;
+  return was;
+}
 
 function parseDevices(text = '') {
   return text
@@ -23,12 +33,14 @@ function parseDevices(text = '') {
 
 const ping = (host) =>
   new Promise((resolve) => {
-    execFile('ping', ['-c', '1', '-W', '1', host], { timeout: 3000 }, (error) => resolve(!error));
+    execFile('ping', ['-c', '1', '-W', String(PING_WAIT_S), host], { timeout: 4000 }, (error) => resolve(!error));
   });
 
 export function createPresence(cfg, hub, log) {
   const devices = parseDevices(cfg.devices);
-  const misses = new Map();
+  // Counted from start-up too, so a restart doesn't report "asleep" early.
+  const startedAt = Date.now();
+  const lastAnswer = new Map();
   const awake = new Map();
   let timer = null;
   let checking = false;
@@ -36,10 +48,12 @@ export function createPresence(cfg, hub, log) {
   const idOf = (host) => `presence:${host.replace(/\./g, '-')}`;
 
   async function check(d) {
-    const answers = await ping(d.host);
-    misses.set(d.host, answers ? 0 : (misses.get(d.host) ?? 0) + 1);
-    const now = answers ? true : misses.get(d.host) >= MISSES_FOR_ASLEEP ? false : awake.get(d.host) ?? false;
-    if (awake.get(d.host) === now) return;
+    const answered = await ping(d.host);
+    if (answered) lastAnswer.set(d.host, Date.now());
+    const was = awake.get(d.host);
+    const now = nextAwake({ answered, lastAnswerAt: lastAnswer.get(d.host) ?? startedAt, now: Date.now(), was });
+    // Not sure yet (silent, but not for long): report nothing until we are.
+    if (now === undefined || was === now) return;
     awake.set(d.host, now);
     log.info(`${d.name} is ${now ? 'awake' : 'asleep'}`);
     hub.upsertDevice({

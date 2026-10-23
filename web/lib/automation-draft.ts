@@ -43,7 +43,7 @@ export type AutomationDraft = {
 export const categoryOf = (type: RuleDraft["when"]): Category =>
   type === "time" || type === "time_range"
     ? "time"
-    : type === "device" || type === "event"
+    : type === "device" || type === "event" || type === "scene"
       ? "device"
       : "weather";
 
@@ -97,6 +97,8 @@ function ruleDraft(t: AutomationRule, devices: Device[]): RuleDraft {
         weatherOption: weatherOptionFor(t)?.id ?? "",
         weatherValue: typeof t.value === "number" ? t.value : null,
       };
+    case "scene":
+      return { ...d, device: t.scene_id, option: t.value ? "scene_on" : "scene_off" };
     case "event": {
       if (t.event !== "button.press")
         return { ...d, device: t.device_id ?? "", option: "ring" };
@@ -217,6 +219,10 @@ export function buildRule(
       event: "doorbell.ring",
       ...(d.device ? { device_id: d.device } : {}),
     };
+  if (d.when === "scene") {
+    if (!d.device || (d.option !== "scene_on" && d.option !== "scene_off")) return "Choose a scene and what to check.";
+    return { type: "scene", scene_id: d.device, value: d.option === "scene_on" };
+  }
   const device = devices.find((device) => device.id === d.device);
   const option =
     device && triggerOptions(device).find((option) => option.id === d.option);

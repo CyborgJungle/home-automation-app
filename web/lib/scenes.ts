@@ -49,6 +49,8 @@ function satisfied(a: SceneAction, s: State): boolean | null {
       return Boolean(floorOf(s)?.enabled) && close(floorOf(s)?.target, p.target, 0.1);
     case "floor_off":
       return !floorOf(s)?.enabled;
+    case "plugin":
+      return num(s.plugin) === num(p.id);
     case "follow_schedule":
       return s.mode === "FollowSchedule";
     case "room_on":

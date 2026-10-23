@@ -61,7 +61,9 @@ export type AutomationRule =
   // While it's dark: from sunset (+/- minutes) until sunrise (+/- minutes).
   | { type: "dark"; sunset_offset_minutes: number; sunrise_offset_minutes: number }
   | { type: "device"; device_id: string; key: string; op: "eq" | "ne" | "lt" | "gt"; value: unknown; option?: string; mode?: "becomes" }
-  | { type: "event"; event: string; device_id?: string; pattern?: string; option?: string };
+  | { type: "event"; event: string; device_id?: string; pattern?: string; option?: string }
+  // Whether a scene is on: every device in it looks the way the scene sets it.
+  | { type: "scene"; scene_id: string; value: boolean };
 
 export type AutomationTrigger = AutomationRule | { type: "logic"; groups: AutomationRule[][] };
 
