@@ -412,11 +412,13 @@ export type ActionOption = {
 };
 
 // A YouTube link opens in the Apple TV's YouTube app with its own scheme;
-// other links go as they are.
+// other links go as they are. A start time (`t=90`, `t=1m30s`) is kept, since
+// without one YouTube resumes where it was last stopped.
 export function appleLink(url: string) {
   const u = url.trim();
   const id = u.match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|live\/|shorts\/)|youtu\.be\/)([\w-]{6,})/)?.[1];
-  return id ? `youtube://www.youtube.com/watch?v=${id}` : u;
+  const start = u.match(/[?&]t=(\d+[hms\d]*)/)?.[1];
+  return id ? `youtube://www.youtube.com/watch?v=${id}${start ? `&t=${start}` : ""}` : u;
 }
 
 const onFor: ActionOption = {
