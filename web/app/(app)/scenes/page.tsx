@@ -192,8 +192,9 @@ function Editor({ initial, onClose }: { initial: Draft; onClose: () => void }) {
           <div className="block tone-sand">
             <span className="badge">Turns off</span>
             <p>
-              Every light, plug and TV, music that&apos;s playing, and the floor heating. It looks at your devices when you
-              play it, so new ones are always included. Blinds and the rest of the heating are left alone.
+              Every light, plug and TV, music that&apos;s playing, and all the heating: every room, the floor heating
+              and the boiler. It looks at your devices when you play it, so new ones are always included. Blinds are
+              left alone.
             </p>
           </div>
         ) : (

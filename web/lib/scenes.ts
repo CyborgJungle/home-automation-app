@@ -71,6 +71,7 @@ function everythingOff(devices: Device[], commands: Command[]) {
       if (["light", "group", "plug", "tv"].includes(d.kind)) return !s.on;
       if (d.kind === "speaker") return !s.playing;
       if (floorOf(s)) return !floorOf(s)!.enabled;
+      if (d.kind === "heating") return s.mode === "HeatingOff";
       return true;
     });
 }
