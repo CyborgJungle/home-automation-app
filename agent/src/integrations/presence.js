@@ -8,18 +8,27 @@
 import { execFile } from 'node:child_process';
 
 // A ping is a single tiny packet, so checking often costs the Pi next to
-// nothing. One answer means awake straight away. Asleep takes 5 minutes
-// without a single answer: an idle Steam machine (or its Wi-Fi saving power)
-// can skip pings for a while, and "asleep" turns the TV off.
+// nothing. Single pings aren't trusted either way: an idle Steam machine (or
+// its Wi-Fi saving power) skips some, and a sleeping one still answers one now
+// and then. So it's the share of answers that counts:
+//   awake:  at least 3 answers in the last 10 seconds (seen within seconds)
+//   asleep: at most 1 in 10 answered over the last 2 minutes
+// "Asleep" turns the TV off, so it waits for the full 2 minutes of pings.
 const POLL_MS = 2000;
 const PING_WAIT_S = 2;
-export const ASLEEP_AFTER_MS = 5 * 60 * 1000;
+export const AWAKE_WINDOW_MS = 10 * 1000;
+export const AWAKE_ANSWERS = 3;
+export const ASLEEP_WINDOW_MS = 2 * 60 * 1000;
+export const ASLEEP_SHARE = 0.1;
 
-// Awake when it just answered; asleep once it has been silent long enough;
-// otherwise keep what we had.
-export function nextAwake({ answered, lastAnswerAt, now, was }) {
-  if (answered) return true;
-  if (now - lastAnswerAt >= ASLEEP_AFTER_MS) return false;
+// history: [{ at, answered }] oldest first, at least the last 2 minutes.
+// Returns true/false, or `was` while it isn't clear yet (undefined at start).
+export function nextAwake({ history, now, was, since }) {
+  const answers = (ms) => history.filter((h) => h.at > now - ms && h.answered).length;
+  if (answers(AWAKE_WINDOW_MS) >= AWAKE_ANSWERS) return true;
+  const recent = history.filter((h) => h.at > now - ASLEEP_WINDOW_MS);
+  // Only once there are 2 minutes of pings to go on (also after a restart).
+  if (now - since >= ASLEEP_WINDOW_MS && recent.length && answers(ASLEEP_WINDOW_MS) <= recent.length * ASLEEP_SHARE) return false;
   return was;
 }
 
@@ -38,9 +47,8 @@ const ping = (host) =>
 
 export function createPresence(cfg, hub, log) {
   const devices = parseDevices(cfg.devices);
-  // Counted from start-up too, so a restart doesn't report "asleep" early.
   const startedAt = Date.now();
-  const lastAnswer = new Map();
+  const history = new Map();
   const awake = new Map();
   let timer = null;
   let checking = false;
@@ -49,13 +57,17 @@ export function createPresence(cfg, hub, log) {
 
   async function check(d) {
     const answered = await ping(d.host);
-    if (answered) lastAnswer.set(d.host, Date.now());
+    const at = Date.now();
+    const seen = (history.get(d.host) ?? []).filter((h) => h.at > at - ASLEEP_WINDOW_MS);
+    seen.push({ at, answered });
+    history.set(d.host, seen);
     const was = awake.get(d.host);
-    const now = nextAwake({ answered, lastAnswerAt: lastAnswer.get(d.host) ?? startedAt, now: Date.now(), was });
-    // Not sure yet (silent, but not for long): report nothing until we are.
+    const now = nextAwake({ history: seen, now: at, was, since: startedAt });
+    // Not sure yet (just started): report nothing until we are.
     if (now === undefined || was === now) return;
     awake.set(d.host, now);
-    log.info(`${d.name} is ${now ? 'awake' : 'asleep'}`);
+    const share = `${seen.filter((h) => h.answered).length} of ${seen.length} pings answered in the last 2 min`;
+    log.info(`${d.name} is ${now ? 'awake' : 'asleep'} (${share})`);
     hub.upsertDevice({
       id: idOf(d.host),
       integration: 'presence',
