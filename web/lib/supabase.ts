@@ -82,6 +82,8 @@ export type AutomationAction = {
   choice?: string | null;
   // Automations: switch the device off this many minutes after the trigger stops holding.
   off_after_minutes?: number;
+  // Scenes: skipped when the scene is played between sunrise and sunset.
+  only_dark?: boolean;
 };
 
 export type Automation = {
@@ -99,7 +101,7 @@ export type Automation = {
 export const SCENE_SHAPES = ["house", "flower", "circle", "star", "squircle", "cloud"] as const;
 export type SceneShape = (typeof SCENE_SHAPES)[number];
 
-export type SceneAction = Pick<AutomationAction, "device_id" | "action" | "params" | "option" | "value" | "choice">;
+export type SceneAction = Pick<AutomationAction, "device_id" | "action" | "params" | "option" | "value" | "choice" | "only_dark">;
 
 export type Scene = {
   id: string;

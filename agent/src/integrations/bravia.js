@@ -5,7 +5,7 @@
 // Authentication "Normal and Pre-Shared Key", set a Pre-Shared Key, and turn on
 // Remote start so the TV can be switched on from standby.
 
-import { inputToSwitch, portOf } from './tv-inputs.js';
+import { COOLDOWN_MS, decide, portOf } from './tv-inputs.js';
 
 // Often enough to notice the TV coming on (say via the Apple TV) within seconds.
 const POLL_MS = 4000;
@@ -30,10 +30,13 @@ export function createBravia(cfg, hub, log) {
   const inputNames = new Set();
   let inputsCheckedAt = 0;
   // Following the source devices (BRAVIA_HDMI_<port>): when each came on.
-  const sources = (cfg.sources ?? []).map((s) => ({ ...s, on: null, onSince: 0 }));
+  const sources = (cfg.sources ?? []).map((s) => ({ ...s, on: null, onSince: 0, offSince: 0, goneAt: 0 }));
   let tvOn = null;
   let tvOnSince = 0;
   let lastSwitchAt = 0;
+  let lastOffAt = 0;
+  let lastPort = null; // what portOf() gave last time
+  let shown = null; // { port, since }: the source input the TV was last on
 
   async function rpc(service, method, params = [], version = '1.0') {
     const res = await fetch(`http://${cfg.host}/sony/${service}`, {
@@ -90,6 +93,9 @@ export function createBravia(cfg, hub, log) {
     try {
       const power = await rpc('system', 'getPowerStatus');
       const state = { on: power?.status === 'active', model };
+      // Seen on at the agent's start doesn't count as "just came on".
+      if (state.on && tvOn === false) tvOnSince = Date.now();
+      tvOn = state.on;
       if (state.on) {
         const volumes = await rpc('audio', 'getVolumeInformation');
         const speaker = volumes?.find((v) => v.target === 'speaker') ?? volumes?.[0];
@@ -105,9 +111,6 @@ export function createBravia(cfg, hub, log) {
       } else {
         trackInput(null);
       }
-      // Seen on at the agent's start doesn't count as "just came on".
-      if (state.on && tvOn === false) tvOnSince = Date.now();
-      tvOn = state.on;
       state.input = input;
       state.input_was = Date.now() < inputWasUntil ? inputWas : null;
       state.inputs = [...inputNames].sort();
@@ -128,25 +131,68 @@ export function createBravia(cfg, hub, log) {
     }
   }
 
-  // Puts the TV on the input of the device that's on (see tv-inputs.js).
+  // While it switches on, off or between inputs, the TV answers "Not Found"
+  // (404) or "Illegal State" (7, 40000) for a few seconds; keep trying for
+  // about 15 seconds instead of giving up on the first answer.
+  async function whenReady(call) {
+    for (let wait = 500; ; wait *= 2) {
+      try {
+        return await call();
+      } catch (e) {
+        if (![404, 7, 40000].includes(e.code) || wait > 8000) throw e;
+        await new Promise((r) => setTimeout(r, wait));
+      }
+    }
+  }
+
+  async function setPower(on) {
+    try {
+      await whenReady(() => rpc('system', 'setPowerStatus', [{ status: on }]));
+    } catch (e) {
+      // "Display Is Turned off": it already is.
+      if (!(on === false && e.code === 40005)) throw e;
+    }
+  }
+
+  // Follows the source devices (see tv-inputs.js): the right input, or off
+  // when the device being watched goes away.
   async function followSources(uri) {
     if (!sources.length) return;
     const now = Date.now();
+    const current = portOf(uri);
     for (const s of sources) {
       const row = hub.devices.get(s.device);
       const on = Boolean(row && row.online !== false && (row.state?.on === true || row.state?.awake === true));
       if (on && s.on === false) s.onSince = now;
+      if (!on && s.on === true) s.offSince = now;
       s.on = on;
+      // The TV left this device's input for an empty one by itself: the device went away.
+      if (lastPort === s.port && current !== null && !sources.some((o) => o.port === current) && now - lastSwitchAt > COOLDOWN_MS) {
+        s.goneAt = now;
+      }
+      if (current === s.port) s.goneAt = 0;
     }
-    const port = inputToSwitch({ sources, current: portOf(uri), tvOnSince, lastSwitchAt, now });
-    if (port === null) return;
-    lastSwitchAt = now;
-    const from = input ?? 'an app';
-    try {
-      await rpc('avContent', 'setPlayContent', [{ uri: `extInput:hdmi?port=${port}` }]);
-      log.info(`TV was on ${from}; switched to HDMI ${port}`);
-    } catch (e) {
-      log.warn(`switching the TV to HDMI ${port} failed:`, e.message);
+    if (sources.some((s) => s.port === current) && shown?.port !== current) shown = { port: current, since: now };
+    lastPort = current;
+
+    const next = decide({ sources, current, shown, tvOnSince, lastSwitchAt, lastOffAt, now });
+    if (next?.off) {
+      lastOffAt = now;
+      try {
+        await setPower(false);
+        log.info(`the device on HDMI ${shown.port} went away; switched the TV off`);
+      } catch (e) {
+        log.warn('switching the TV off failed:', e.message);
+      }
+    } else if (next?.port) {
+      lastSwitchAt = now;
+      const from = input ?? 'an app';
+      try {
+        await whenReady(() => rpc('avContent', 'setPlayContent', [{ uri: `extInput:hdmi?port=${next.port}` }]));
+        log.info(`TV was on ${from}; switched to HDMI ${next.port}`);
+      } catch (e) {
+        log.warn(`switching the TV to HDMI ${next.port} failed:`, e.message);
+      }
     }
   }
 
@@ -162,22 +208,12 @@ export function createBravia(cfg, hub, log) {
 
   async function execute(deviceId, action, params) {
     if (action === 'power') {
-      await rpc('system', 'setPowerStatus', [{ status: Boolean(params.on) }]);
+      await setPower(Boolean(params.on));
     } else if (action === 'volume' && params.volume != null) {
       // An exact level, e.g. {"volume": 15}.
       const level = Math.max(0, Math.min(100, Math.round(Number(params.volume))));
       const set = () => rpc('audio', 'setAudioVolume', [{ target: 'speaker', volume: String(level) }]);
-      // Right after switching on, the TV answers "Not Found" (404) or "Illegal
-      // State" (7) until its audio is up; keep trying for about 10 seconds.
-      for (let wait = 500; ; wait *= 2) {
-        try {
-          await set();
-          break;
-        } catch (e) {
-          if (![404, 7, 40000].includes(e.code) || wait > 4000) throw e;
-          await new Promise((r) => setTimeout(r, wait));
-        }
-      }
+      await whenReady(set);
       setTimeout(async () => {
         try {
           const volumes = await rpc('audio', 'getVolumeInformation');

@@ -4,12 +4,12 @@
 // device (or, in automations, a scene) and what it should do.
 
 import { Icon } from "@/components/icons";
-import { Slider } from "@/components/ui";
+import { Slider, Switch } from "@/components/ui";
 import { ChipChoice, deviceGroups, Picker, sceneItem, type PickerGroup } from "@/components/picker";
 import { actionOptions, canAct, type NumberInput } from "@/lib/devices";
 import type { AutomationAction, Device, Scene } from "@/lib/supabase";
 
-export type ActionRow = { device_id: string; option: string; value: number | null; choice?: string | null };
+export type ActionRow = { device_id: string; option: string; value: number | null; choice?: string | null; onlyDark?: boolean };
 
 export const emptyRow = (): ActionRow => ({ device_id: "", option: "", value: null, choice: null });
 
@@ -22,6 +22,7 @@ export const toRows = (actions: AutomationAction[]): ActionRow[] =>
     option: a.option ?? "",
     value: a.value ?? null,
     choice: a.choice ?? null,
+    onlyDark: Boolean(a.only_dark),
   }));
 
 // Turns the rows into what Supabase runs, or explains what's missing.
@@ -49,6 +50,7 @@ export function buildActions(rows: ActionRow[], devices: Device[], scenes: Scene
       value,
       choice,
       ...(option.offAfter && value !== null ? { off_after_minutes: value } : {}),
+      ...(row.onlyDark ? { only_dark: true } : {}),
     });
   }
   if (!actions.length) return "Add at least one action.";
@@ -61,6 +63,7 @@ export function ActionRows({
   devices,
   scenes,
   timed = false,
+  darkOption = false,
 }: {
   rows: ActionRow[];
   onChange: (rows: ActionRow[]) => void;
@@ -68,6 +71,8 @@ export function ActionRows({
   scenes?: Scene[];
   // Offer "Turn on for…" (automations only; a scene has nothing to count from).
   timed?: boolean;
+  // Offer "Only after sunset" per device (scenes; automations have their own conditions).
+  darkOption?: boolean;
 }) {
   const groups: PickerGroup[] = [
     ...(scenes?.length ? [{ title: "Play a scene", items: scenes.map((sc) => sceneItem(sc, `${SCENE_PREFIX}${sc.id}`)) }] : []),
@@ -142,6 +147,12 @@ export function ActionRows({
                   value={row.value}
                   onChange={(v) => update({ value: v })}
                 />
+              )}
+              {darkOption && option && (
+                <div className="action-switch">
+                  <span className="grow">Only after sunset</span>
+                  <Switch on={Boolean(row.onlyDark)} label="Only after sunset" onChange={(onlyDark) => update({ onlyDark })} />
+                </div>
               )}
               {option?.offAfter && (
                 <p className="muted small">

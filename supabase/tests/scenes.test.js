@@ -97,3 +97,38 @@ test('"TV turns on" is skipped while Pip mode was played last, and runs again af
   await db.exec(`update public.devices set state = '{"on":true}' where id = '${TV}'`);
   assert.equal(await volumes(), 1);
 });
+
+// --- "Only after sunset" ------------------------------------------------------
+
+async function sun(darkNow) {
+  const day = darkNow
+    ? { sunrise: "now() + interval '10 hours'", sunset: "now() - interval '1 hour'" }
+    : { sunrise: "now() - interval '2 hours'", sunset: "now() + interval '2 hours'" };
+  await db.exec(`update public.weather set sun_events = jsonb_build_object(to_char(now(), 'YYYY-MM-DD'),
+    jsonb_build_object('sunrise', ${day.sunrise}, 'sunset', ${day.sunset})) where id = 1`);
+}
+const hallwayAfterSunset = [
+  { device_id: TV, action: 'power', params: { on: true } },
+  { device_id: LAMP, action: 'set', params: { on: true }, only_dark: true },
+];
+const queued = async () => (await db.query('select device_id from public.commands order by id')).rows.map((r) => r.device_id);
+
+test('in daylight a scene skips its "only after sunset" devices', async () => {
+  await sun(false);
+  const id = await scene('Pip mode', hallwayAfterSunset);
+  await db.query("select private.queue_scene($1, 'test', null)", [id]);
+  assert.deepEqual(await queued(), [TV]);
+});
+
+test('after sunset it switches them on too', async () => {
+  await sun(true);
+  const id = await scene('Pip mode', hallwayAfterSunset);
+  await db.query("select private.queue_scene($1, 'test', null)", [id]);
+  assert.deepEqual(await queued(), [TV, LAMP]);
+});
+
+test('an "only after sunset" device that is off does not make the scene "off"', async () => {
+  const id = await scene('Pip mode', hallwayAfterSunset);
+  await db.exec(`update public.devices set state = '{"on":true}' where id = '${TV}'`);
+  assert.equal(await check({ type: 'scene', scene_id: id, value: true }), true);
+});

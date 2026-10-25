@@ -200,7 +200,7 @@ function Editor({ initial, onClose }: { initial: Draft; onClose: () => void }) {
         ) : (
           <div className="block tone-sand">
             <span className="badge">Set these</span>
-            <ActionRows rows={draft.rows} onChange={(rows) => set({ rows })} devices={devices} />
+            <ActionRows rows={draft.rows} onChange={(rows) => set({ rows })} devices={devices} darkOption />
           </div>
         )}
 

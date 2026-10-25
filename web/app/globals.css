@@ -1923,6 +1923,16 @@ button.chip.selected {
   min-width: 0;
 }
 
+/* A per-action switch, like "Only after sunset" in a scene. */
+.action-switch {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 2px 2px 0;
+  font-weight: 650;
+  font-size: 15px;
+}
+
 .error {
   padding: 12px 14px;
   border-radius: var(--r-md);

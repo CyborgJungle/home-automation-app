@@ -80,6 +80,8 @@ export function sceneIsOn(scene: Scene, devices: Device[], commands: Command[]) 
   if (scene.kind === "all_off") return everythingOff(devices, commands);
   let checked = 0;
   for (const a of scene.actions) {
+    // "Only after sunset" devices may rightly be off in daylight: not checked.
+    if (a.only_dark) continue;
     const device = devices.find((d) => d.id === a.device_id);
     if (!device || !device.online) continue;
     const ok = satisfied(a, displayState(device, commands));
