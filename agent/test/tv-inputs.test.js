@@ -106,3 +106,9 @@ test('one switch-off attempt a minute', () => {
 test('no input watched yet (just started): nothing to switch off', () => {
   assert.equal(run([steam(false), apple(false, { offSince: NOW - 20_000 })], 3), null);
 });
+
+test('the Steam machine sleeps: its input loses the signal and the TV goes off 3 seconds later', () => {
+  const sources = (goneAt) => [steam(true, { goneAt }), apple(false)];
+  assert.equal(run(sources(NOW - AWAY_GRACE_MS + 1), 2, watching(2)), null, 'not on a short drop');
+  assert.deepEqual(run(sources(NOW - AWAY_GRACE_MS), 2, watching(2)), { off: true });
+});

@@ -7,8 +7,8 @@
 
 import { COOLDOWN_MS, decide, portOf } from './tv-inputs.js';
 
-// Often enough to notice the TV coming on (say via the Apple TV) within seconds.
-const POLL_MS = 4000;
+// Often enough to notice the TV coming on, or a console's signal going, within seconds.
+const POLL_MS = 2000;
 // While it starts up the TV may put its own volume back; check and set again.
 const VOLUME_RECHECK_MS = 3000;
 // After switching inputs, remember the previous one this long. So "the TV
@@ -30,7 +30,7 @@ export function createBravia(cfg, hub, log) {
   const inputNames = new Set();
   let inputsCheckedAt = 0;
   // Following the source devices (BRAVIA_HDMI_<port>): when each came on.
-  const sources = (cfg.sources ?? []).map((s) => ({ ...s, on: null, onSince: 0, offSince: 0, goneAt: 0 }));
+  const sources = (cfg.sources ?? []).map((s) => ({ ...s, on: null, onSince: 0, offSince: 0, goneAt: 0, signal: null }));
   let tvOn = null;
   let tvOnSince = 0;
   let lastSwitchAt = 0;
@@ -154,10 +154,26 @@ export function createBravia(cfg, hub, log) {
     }
   }
 
+  // Which HDMI inputs have a picture coming in: port -> true/false. Empty when
+  // the TV can't say (it's busy), so nothing is concluded from it.
+  async function readSignals() {
+    try {
+      const list = await rpc('avContent', 'getCurrentExternalInputsStatus', [], '1.1');
+      return new Map(
+        (list ?? [])
+          .filter((i) => /^extInput:hdmi\?port=\d+$/.test(i.uri) && (i.status === 'true' || i.status === 'false'))
+          .map((i) => [portOf(i.uri), i.status === 'true']),
+      );
+    } catch {
+      return new Map();
+    }
+  }
+
   // Follows the source devices (see tv-inputs.js): the right input, or off
   // when the device being watched goes away.
   async function followSources(uri) {
     if (!sources.length) return;
+    const signals = await readSignals();
     const now = Date.now();
     const current = portOf(uri);
     for (const s of sources) {
@@ -170,7 +186,12 @@ export function createBravia(cfg, hub, log) {
       if (lastPort === s.port && current !== null && !sources.some((o) => o.port === current) && now - lastSwitchAt > COOLDOWN_MS) {
         s.goneAt = now;
       }
-      if (current === s.port) s.goneAt = 0;
+      // Its input lost its signal while you watched it: the device went to sleep.
+      const signal = signals.get(s.port);
+      if (s.signal === true && signal === false && current === s.port) s.goneAt = now;
+      if (signal !== undefined) s.signal = signal;
+      // Back: you're on its input and the picture is there again.
+      if (current === s.port && signal === true) s.goneAt = 0;
     }
     if (sources.some((s) => s.port === current) && shown?.port !== current) shown = { port: current, since: now };
     lastPort = current;

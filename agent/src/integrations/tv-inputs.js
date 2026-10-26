@@ -7,14 +7,15 @@
 // alone: another source's input, or an app on the TV itself.
 //
 // Switching off: when the device you were watching goes away, the TV goes off
-// too. "Goes away" is the device turning off, or the TV jumping from its input
-// to an empty one on its own (a console going to sleep says so over HDMI-CEC,
-// well before its network goes quiet). Not when you've just turned the other
-// device on or gone to its input, and not when you turned the TV back on later.
+// too. "Goes away" is the device turning off, its input losing its signal (a
+// console going to sleep: at once, while its network stays up for minutes),
+// or the TV jumping from its input to an empty one on its own. Not when you've
+// just turned the other device on or gone to its input, and not when you
+// turned the TV back on later.
 
 export const JUST_ON_MS = 60_000; // "just came on": switch inputs while this is true
 export const COOLDOWN_MS = 15_000; // never switch inputs more often than this
-export const AWAY_GRACE_MS = 8_000; // gone this long (not a hiccup) before switching off
+export const AWAY_GRACE_MS = 3_000; // gone this long (not a hiccup, like a resolution change) before switching off
 export const OTHER_RECENT_MS = 2 * 60_000; // the other device came on this recently: you moved to it
 export const OFF_COOLDOWN_MS = 60_000; // one switch-off attempt per minute
 
