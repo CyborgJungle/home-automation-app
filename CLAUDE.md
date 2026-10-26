@@ -12,7 +12,7 @@
 - `web/` is the Next.js app on Vercel (phone home-screen app). Read `web/AGENTS.md` first: this Next.js version differs from what you know.
 - `agent/` is the Node agent on the Raspberry Pi. It talks to devices on the home network (IKEA, Brel, Sony, Sonos, Apple, Roborock, network presence) and syncs with Supabase. Integrations live in `agent/src/integrations/`.
 - `supabase/` holds migrations, the edge functions (`evohome`, `weather`) and tests.
-- The Supabase project is `home-automation`, ref `YOUR-PROJECT-REF`. Use the Supabase connector (`mcp__Supabase__*`) for this project. The Supabase plugin may not be able to connect.
+- The Supabase project is `home-automation` (look up its ref with the connector). Use the Supabase connector (`mcp__Supabase__*`) for this project. The Supabase plugin may not be able to connect.
 
 ## Checks
 
